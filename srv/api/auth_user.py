@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Response, Depends, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 import app.hp_etl.db as db
 from app.hp_etl.csrf import generate_csrf, require_csrf
 from passlib.context import CryptContext
