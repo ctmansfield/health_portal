@@ -1,0 +1,169 @@
+PATCH_SRC="/mnt/nas_storage/repos/health_portal/patch/healthdb-pg-0001"
+mkdir -p "$PATCH_SRC"/{init,scripts}
+
+# PATCH.yaml (tells installer where to deploy)
+cat > "$PATCH_SRC/PATCH.yaml" <<'YAML'
+target: /mnt/nas_storage/repos/health_portal/services/healthdb-pg-0001
+service_name: healthdb-pg-0001
+commit_message: "feat: add healthdb-pg-0001 (Dockerized Postgres + FHIR bucket + analytics spine)"
+YAML
+
+# .env (you can edit later in VS)
+cat > "$PATCH_SRC/.env" <<'ENV'
+POSTGRES_USER=health
+POSTGRES_PASSWORD=health_pw
+POSTGRES_DB=health
+PGPORT=55432
+PGDATA=/var/lib/postgresql/data
+# local path lives off-SMB; compose file will bind-mount it:
+LOCAL_PGDATA_HOST=/mnt/llmstore/health_portal/pgdata
+ENV
+
+# docker-compose.yml (no 'version:'; data at LOCAL_PGDATA_HOST)
+cat > "$PATCH_SRC/docker-compose.yml" <<'YML'
+services:
+  db:
+    image: postgres:16
+    container_name: healthdb
+    env_file: ./.env
+    ports: ["${PGPORT:-55432}:5432"]
+    volumes:
+      - ${LOCAL_PGDATA_HOST}:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-health} -d ${POSTGRES_DB:-health}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:4
+    container_name: healthdb_adminer
+    ports: ["18080:8080"]
+    depends_on: [db]
+    restart: unless-stopped
+YML
+
+# schema
+cat > "$PATCH_SRC/init/001_schema.sql" <<'SQL'
+set timezone to 'UTC';
+CREATE SCHEMA IF NOT EXISTS fhir_raw;
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+CREATE TABLE IF NOT EXISTS fhir_raw.resources (
+  resource_type text NOT NULL,
+  resource_id   text NOT NULL,
+  resource      jsonb NOT NULL,
+  imported_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT fhir_raw_resources_pk PRIMARY KEY (resource_type, resource_id)
+);
+CREATE INDEX IF NOT EXISTS fhir_raw_resources_gin  ON fhir_raw.resources USING gin (resource);
+CREATE INDEX IF NOT EXISTS fhir_raw_resources_type ON fhir_raw.resources (resource_type);
+
+CREATE TABLE IF NOT EXISTS analytics.data_events (
+  id bigserial PRIMARY KEY,
+  person_id       text NOT NULL,
+  source          text NOT NULL,
+  kind            text NOT NULL,
+  code_system     text,
+  code            text,
+  display         text,
+  effective_time  timestamptz,
+  effective_start timestamptz,
+  effective_end   timestamptz,
+  value_num       double precision,
+  value_text      text,
+  unit            text,
+  device_id       text,
+  status          text,
+  raw             jsonb NOT NULL,
+  meta            jsonb
+);
+CREATE INDEX IF NOT EXISTS de_person_time   ON analytics.data_events (person_id, effective_time);
+CREATE INDEX IF NOT EXISTS de_person_period ON analytics.data_events (person_id, effective_start, effective_end);
+CREATE INDEX IF NOT EXISTS de_code          ON analytics.data_events (code_system, code);
+CREATE INDEX IF NOT EXISTS de_raw_gin       ON analytics.data_events USING gin (raw jsonb_path_ops);
+
+CREATE TABLE IF NOT EXISTS analytics.person (
+  person_id text PRIMARY KEY,
+  tz text NOT NULL DEFAULT 'America/New_York'
+);
+INSERT INTO analytics.person(person_id) VALUES ('me')
+ON CONFLICT (person_id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS analytics.etl_state (
+  key text PRIMARY KEY,
+  value text
+);
+SQL
+
+# scripts
+cat > "$PATCH_SRC/scripts/up.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+docker compose up -d
+echo "Adminer: http://localhost:18080  (server: db, user: ${POSTGRES_USER:-health})"
+SH
+chmod +x "$PATCH_SRC/scripts/up.sh"
+
+cat > "$PATCH_SRC/scripts/down.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+docker compose down
+SH
+chmod +x "$PATCH_SRC/scripts/down.sh"
+
+cat > "$PATCH_SRC/scripts/psql.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+docker compose exec -e PAGER=cat db psql -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}"
+SH
+chmod +x "$PATCH_SRC/scripts/psql.sh"
+
+cat > "$PATCH_SRC/verify.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+echo "[1/4] docker compose ps"
+docker compose ps
+
+echo "[2/4] wait for postgres readiness"
+for i in $(seq 1 40); do
+  if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}" >/dev/null 2>&1; then
+    echo " - ready"
+    break
+  fi
+  sleep 1
+done
+
+echo "[3/4] schemas"
+docker compose exec -T db psql -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}" -c "\dn+"
+docker compose exec -T db psql -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}" -c "\dt fhir_raw.*"
+docker compose exec -T db psql -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}" -c "\dt analytics.*"
+
+echo "[4/4] smoke inserts"
+docker compose exec -T db psql -U "${POSTGRES_USER:-health}" -d "${POSTGRES_DB:-health}" <<'SQL'
+INSERT INTO fhir_raw.resources(resource_type,resource_id,resource)
+VALUES('Observation','verify-obs-1',
+'{"status":"final","code":{"coding":[{"system":"http://loinc.org","code":"8867-4","display":"Heart rate"}]},"valueQuantity":{"value":72,"unit":"beats/min"},"effectiveDateTime":"2025-09-09T12:00:00Z"}')
+ON CONFLICT (resource_type,resource_id) DO UPDATE SET imported_at=now();
+
+INSERT INTO analytics.data_events(person_id,source,kind,code_system,code,display,effective_time,value_num,unit,raw)
+VALUES('me','apple_health','Observation','LOINC','8867-4','Heart rate','2025-09-09T12:00:00Z',72,'beats/min','{"origin":"verify"}');
+
+SELECT count(*) AS fhir_count FROM fhir_raw.resources;
+SELECT count(*) AS events_count FROM analytics.data_events;
+SQL
+
+echo "[✓] verify ok"
+SH
+chmod +x "$PATCH_SRC/verify.sh"
+
+# note the patch in git
+cd /mnt/nas_storage/repos/health_portal
+git add patch/healthdb-pg-0001
+git commit -m "feat(patch): add healthdb-pg-0001 source" || true
