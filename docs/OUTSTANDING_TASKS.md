@@ -7,7 +7,7 @@ Top priority
 - AUTH-HARDENING (GEN-008)
   - Implement server-side sessions, users/roles, RBAC, and CSRF protections.
   - Files: services/healthdb-pg-0001/init/045_auth.sql, srv/api/auth_user.py, scripts/create_user.py
-  - Status: migration added; auth_user scaffolded; passlib required; tests pending.
+  - Status: migration added; auth_user implementation hardened (async login, session TTL enforcement); session cleanup job added (jobs/cleanup_sessions.py) and cron entry; create_user CLI improved; unit tests added for session behavior.
   - Estimate: 3–6 days.
 
 High priority (ops & reliability)

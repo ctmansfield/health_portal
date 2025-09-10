@@ -13,9 +13,17 @@ ap.add_argument("--username", required=True)
 ap.add_argument("--email", default=None)
 ap.add_argument("--full-name", default=None)
 ap.add_argument("--role", default=None)
+ap.add_argument(
+    "--password",
+    default=None,
+    help="Optional: provide password as argument (not recommended)",
+)
 args = ap.parse_args()
 
-pw = getpass.getpass("Password: ")
+if args.password:
+    pw = args.password
+else:
+    pw = getpass.getpass("Password: ")
 hash = pwd_context.hash(pw)
 
 with pg() as conn:

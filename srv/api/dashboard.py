@@ -34,12 +34,23 @@ async def login_post(request: Request):
     hp_key = os.environ.get("HP_API_KEY")
     from fastapi.responses import JSONResponse
 
+    from app.hp_etl.csrf import generate_csrf
+
     if not hp_key:
         # no API key required in this deployment; behave as successful
-        return JSONResponse({"ok": True})
+        resp = JSONResponse({"ok": True})
+        try:
+            generate_csrf(resp)
+        except Exception:
+            pass
+        return resp
     if api_key == hp_key:
         resp = JSONResponse({"ok": True})
         resp.set_cookie("hp_api_key", api_key, httponly=True, path="/", samesite="Lax")
+        try:
+            generate_csrf(resp)
+        except Exception:
+            pass
         return resp
     return templates.TemplateResponse(
         request, "login.html", {"request": request, "error": "Invalid key"}

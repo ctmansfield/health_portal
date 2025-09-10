@@ -1,0 +1,40 @@
+# Single source of truth for cross-component contracts
+# Any change here triggers a minor/major bump and coordinated updates across DB, App, Dashboard.
+
+# SEMVER. Bump rules:
+# - PATCH: non-breaking doc clarifications
+# - MINOR: additive fields/endpoints, optional columns
+# - MAJOR: breaking changes (field rename/removal, behavior change)
+
+db_schema_version: 1.0.0
+api_version: 1.0.0
+payload_schema_version:
+  report: 1.0.0   # maps to schemas/json/report.v1.json
+  variant: 1.0.0
+  biomarker: 1.0.0
+  codes: 1.0.0
+
+compatibility_matrix:
+  # App Layer version -> compatible DB schema & API versions
+  - app_version: ">=0.1.0 <0.2.0"
+    db_schema: "^1.0.0"
+    api: "^1.0.0"
+    payloads:
+      report: "^1.0.0"
+      variant: "^1.0.0"
+      biomarker: "^1.0.0"
+      codes: "^1.0.0"
+
+change_control:
+  owner: "Core Engineering"
+  approval_required: ["Clinical Informatics", "Lab Ops", "Compliance"]
+  process:
+    - open PR updating this file
+    - run integration tests (schema, openapi, fixtures, render snapshots)
+    - tag release; notify teams
+
+artifact_locations:
+  db_migrations: "services/healthdb-pg-0001/migrations"
+  schemas_dir: "app/reporting_scaffold/schemas/json"
+  openapi_file: "api/openapi.genomics_reports.v1.yaml"
+  renderer_component: "app/reporting_scaffold/renderer.py"  # to be swapped with templating in v0.2

@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 import app.hp_etl.db as db
 from .auth import require_api_key
+from .auth_user import require_role
 import os
 import mimetypes
 
@@ -12,7 +13,10 @@ templates = Jinja2Templates(directory="srv/api/templates")
 
 @router.get("/genomics", response_class=HTMLResponse)
 def genomics_index(
-    request: Request, limit: int = 50, offset: int = 0, auth=Depends(require_api_key)
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    auth=Depends(require_role("clinician", "admin")),
 ):
     """Render a list of genomics reports from analytics.genomics_reports."""
     sql = """
@@ -39,7 +43,7 @@ def genomics_index(
 
 @router.get("/genomics/reports/{report_id}", response_class=HTMLResponse)
 def genomics_report_page(
-    request: Request, report_id: str, auth=Depends(require_api_key)
+    request: Request, report_id: str, auth=Depends(require_role("clinician", "admin"))
 ):
     sql = "SELECT report_id, person_id, filename, path, generated_at FROM analytics.genomics_reports WHERE report_id = %s"
     with db.pg() as conn:
@@ -56,7 +60,9 @@ def genomics_report_page(
 
 
 @router.get("/genomics/reports/{report_id}/download")
-def genomics_report_download(report_id: str, auth=Depends(require_api_key)):
+def genomics_report_download(
+    report_id: str, auth=Depends(require_role("clinician", "admin"))
+):
     sql = "SELECT path, filename FROM analytics.genomics_reports WHERE report_id = %s"
     with db.pg() as conn:
         cur = conn.cursor()

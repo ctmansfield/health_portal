@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Response, Depends, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
-from app.hp_etl.db import pg
+import app.hp_etl.db as db
+from app.hp_etl.csrf import generate_csrf, require_csrf
 from passlib.context import CryptContext
 import secrets, os, datetime as dt
 
@@ -33,13 +34,22 @@ def get_user_by_username(conn, username):
 
 
 @router.post("/auth/login")
-def login(req: Request):
-    data = req.json() if hasattr(req, "json") else {}
-    username = data.get("username")
-    password = data.get("password")
+async def login(request: Request):
+    # support both form-encoded and JSON bodies
+    try:
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+    except Exception:
+        try:
+            j = await request.json()
+            username = j.get("username") if isinstance(j, dict) else None
+            password = j.get("password") if isinstance(j, dict) else None
+        except Exception:
+            username = password = None
     if not username or not password:
         raise HTTPException(status_code=400, detail="username and password required")
-    with pg() as conn:
+    with db.pg() as conn:
         row = get_user_by_username(conn, username)
         if not row:
             raise HTTPException(status_code=401, detail="invalid credentials")
@@ -51,18 +61,26 @@ def login(req: Request):
         sid, expires = create_session(conn, user_id)
     resp = JSONResponse({"session": sid, "expires": expires})
     resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="Lax", path="/")
+    # set a CSRF double-submit cookie readable by JS (so clients can send X-CSRF-Token)
+    try:
+        generate_csrf(resp)
+    except Exception:
+        # best-effort; don't fail login if CSRF cookie can't be set
+        pass
     return resp
 
 
 @router.post("/auth/logout")
-def logout(request: Request):
+def logout(request: Request, csrf=Depends(require_csrf)):
     sid = request.cookies.get(SESSION_COOKIE)
     if sid:
-        with pg() as conn:
+        with db.pg() as conn:
             cur = conn.cursor()
             cur.execute("DELETE FROM analytics.sessions WHERE session_id = %s", (sid,))
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(SESSION_COOKIE, path="/")
+    # clear csrf cookie as well
+    resp.delete_cookie("hp_csrf", path="/")
     return resp
 
 
@@ -75,7 +93,7 @@ def get_current_user(request: Request):
         if hp and key == hp:
             return {"system": True, "roles": ["admin"]}
         raise HTTPException(status_code=401, detail="not authenticated")
-    with pg() as conn:
+    with db.pg() as conn:
         cur = conn.cursor()
         cur.execute(
             "SELECT user_id, expires_at FROM analytics.sessions WHERE session_id = %s",
@@ -85,7 +103,27 @@ def get_current_user(request: Request):
         if not row:
             raise HTTPException(status_code=401, detail="invalid session")
         user_id, expires_at = row
-        # TODO: check expires
+        # check expires (accept timestamptz or ISO Z string)
+        try:
+            if isinstance(expires_at, str):
+                expires_dt = dt.datetime.fromisoformat(
+                    expires_at.replace("Z", "+00:00")
+                )
+            else:
+                expires_dt = expires_at
+            now_dt = dt.datetime.now(dt.timezone.utc)
+            if expires_dt.tzinfo is None:
+                expires_dt = expires_dt.replace(tzinfo=dt.timezone.utc)
+            if expires_dt < now_dt:
+                cur.execute(
+                    "DELETE FROM analytics.sessions WHERE session_id = %s", (sid,)
+                )
+                raise HTTPException(status_code=401, detail="session expired")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=401, detail="invalid session")
+
         cur.execute(
             "SELECT id, username, email, full_name, disabled FROM analytics.users WHERE id = %s",
             (user_id,),
@@ -112,7 +150,13 @@ def get_current_user(request: Request):
 
 
 def require_role(*roles):
-    def dep(user=Depends(get_current_user)):
+    def dep(request: Request):
+        # In developer mode (no HP_API_KEY configured) allow access for convenience.
+        hp = os.environ.get("HP_API_KEY")
+        if not hp:
+            return {"system": True, "roles": ["admin"]}
+        # otherwise resolve current user and enforce roles
+        user = get_current_user(request)
         if user.get("system"):
             return user
         user_roles = set(user.get("roles", []))

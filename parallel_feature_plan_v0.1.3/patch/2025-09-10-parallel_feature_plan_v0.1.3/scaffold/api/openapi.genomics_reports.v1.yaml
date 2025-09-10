@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: Health Portal Genomics Reports API
+  version: 1.0.0
+  description: Read-only endpoints for consuming genomics report content in dashboards and services.
+servers:
+  - url: https://api.health-portal.local/v1
+paths:
+  /reports/{id}:
+    get:
+      summary: Get full clinician report payload
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Accept-Version
+          required: false
+          schema: { type: string, example: "1.0" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenomicsReport'
+  /reports/{id}/summary:
+    get:
+      summary: Executive summary for dashboard cards
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExecutiveSummary'
+  /reports/{id}/patient:
+    get:
+      summary: Patient-mode report payload/HTML
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientReport'
+components:
+  schemas:
+    GenomicsReport:
+      type: object
+      description: Mirrors report.v1.json structure; versioned via contracts.yaml payload_schema_version.report
+      properties:
+        id: { type: string }
+        subject: { type: object }
+        specimen: { type: object }
+        indication: { type: string }
+        summary: { type: object }
+        diagnoses: { type: array, items: { type: object } }
+        procedures: { type: array, items: { type: object } }
+        findings: { type: object }
+        clinicalTrials: { type: array, items: { type: object } }
+        recommendations: { type: array, items: { type: string } }
+        methodsAndQC: { type: object }
+        signOut: { type: object }
+    ReportExecutiveSummary:
+      type: object
+      properties:
+        resultBanner: { type: string }
+        keyFindings: { type: array, items: { type: object } }
+        biomarkers: { type: array, items: { type: object } }
+        trialsCount: { type: integer }
+        signedOutAt: { type: string }
+    PatientReport:
+      type: object
+      properties:
+        html: { type: string, description: "Pre-rendered HTML for patient mode" }
+        language: { type: string, default: "en-US" }
