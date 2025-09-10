@@ -1,0 +1,17 @@
+name: App Task
+description: Application layer / API change
+labels: ["area/app","type/feature"]
+body:
+  - type: input
+    id: id
+    attributes: { label: "ID (APP-xx)", placeholder: "APP-1" }
+  - type: textarea
+    id: scope
+    attributes: { label: "Scope" }
+  - type: checkboxes
+    id: contracts
+    attributes:
+      label: Contracts
+      options:
+        - label: "OpenAPI change? Update api_version and file"
+        - label: "Payload schema change? Update contracts.yaml"

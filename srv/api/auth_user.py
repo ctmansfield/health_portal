@@ -21,6 +21,13 @@ def create_session(conn, user_id, ttl_hours=12):
         "INSERT INTO analytics.sessions(session_id, user_id, expires_at) VALUES (%s,%s,%s)",
         (sid, user_id, expires),
     )
+    # if redis is configured, mirror session for fast lookup
+    try:
+        from app.hp_etl.session_store import set_redis_session
+
+        set_redis_session(sid, user_id, expires)
+    except Exception:
+        pass
     return sid, expires
 
 
@@ -74,6 +81,12 @@ async def login(request: Request):
 def logout(request: Request, csrf=Depends(require_csrf)):
     sid = request.cookies.get(SESSION_COOKIE)
     if sid:
+        try:
+            from app.hp_etl.session_store import delete_redis_session
+
+            delete_redis_session(sid)
+        except Exception:
+            pass
         with db.pg() as conn:
             cur = conn.cursor()
             cur.execute("DELETE FROM analytics.sessions WHERE session_id = %s", (sid,))
@@ -93,16 +106,37 @@ def get_current_user(request: Request):
         if hp and key == hp:
             return {"system": True, "roles": ["admin"]}
         raise HTTPException(status_code=401, detail="not authenticated")
-    with db.pg() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT user_id, expires_at FROM analytics.sessions WHERE session_id = %s",
-            (sid,),
-        )
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=401, detail="invalid session")
-        user_id, expires_at = row
+    # try redis-backed session first for performance
+    try:
+        from app.hp_etl.session_store import get_redis_session, delete_redis_session
+
+        r = get_redis_session(sid)
+        if r:
+            user_id, expires_at = r
+            # note: expires_at likely ISO Z string
+        else:
+            with db.pg() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT user_id, expires_at FROM analytics.sessions WHERE session_id = %s",
+                    (sid,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=401, detail="invalid session")
+                user_id, expires_at = row
+    except Exception:
+        # fallback to DB if redis check fails
+        with db.pg() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT user_id, expires_at FROM analytics.sessions WHERE session_id = %s",
+                (sid,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=401, detail="invalid session")
+            user_id, expires_at = row
         # check expires (accept timestamptz or ISO Z string)
         try:
             if isinstance(expires_at, str):
@@ -169,26 +203,47 @@ def require_role(*roles):
 
 # Admin session management endpoints
 @router.get("/admin/sessions")
-def admin_list_sessions(auth=Depends(require_role("admin"))):
-    """Return recent sessions (session_id, user_id, expires_at, created_at)."""
-    sql = "SELECT session_id, user_id, expires_at, created_at FROM analytics.sessions ORDER BY created_at DESC LIMIT 100"
+def admin_list_sessions(
+    auth=Depends(require_role("admin")),
+    page: int = 1,
+    per_page: int = 50,
+    user_id: str | None = None,
+):
+    """Return recent sessions (session_id, user_id, expires_at, created_at) with pagination and optional user filter."""
+    offset = (max(1, page) - 1) * max(1, per_page)
     items = []
+    where = []
+    params = []
+    if user_id:
+        where.append("user_id = %s")
+        params.append(user_id)
+    q_where = ("WHERE " + " AND ".join(where)) if where else ""
+    sql = f"SELECT session_id, user_id, expires_at, created_at FROM analytics.sessions {q_where} ORDER BY created_at DESC LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
     with db.pg() as conn:
         cur = conn.cursor()
         try:
-            cur.execute(sql)
+            cur.execute(sql, tuple(params))
             rows = cur.fetchall()
             cols = [c[0] for c in cur.description]
             for r in rows:
                 items.append(dict(zip(cols, r)))
         except Exception:
             items = []
-    return {"sessions": items}
+    return {"sessions": items, "page": page, "per_page": per_page}
 
 
 @router.post("/admin/sessions/{session_id}/revoke")
-def admin_revoke_session(session_id: str, auth=Depends(require_role("admin"))):
+def admin_revoke_session(
+    session_id: str, auth=Depends(require_role("admin")), csrf=Depends(require_csrf)
+):
     sql = "DELETE FROM analytics.sessions WHERE session_id = %s"
+    try:
+        from app.hp_etl.session_store import delete_redis_session
+
+        delete_redis_session(session_id)
+    except Exception:
+        pass
     with db.pg() as conn:
         cur = conn.cursor()
         try:
@@ -197,3 +252,11 @@ def admin_revoke_session(session_id: str, auth=Depends(require_role("admin"))):
         except Exception:
             return {"ok": False, "error": "failed"}
     return {"ok": True}
+
+
+@router.get("/admin/sessions/ui", response_class=HTMLResponse)
+def admin_sessions_ui(request: Request, auth=Depends(require_role("admin"))):
+    # Render admin sessions UI page
+    return templates.TemplateResponse(
+        request, "admin_sessions.html", {"request": request}
+    )

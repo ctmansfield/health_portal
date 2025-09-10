@@ -1,0 +1,10 @@
+name: Ops Task
+description: Tooling/CI/infra task
+labels: ["type/chore"]
+body:
+  - type: input
+    id: id
+    attributes: { label: "ID (OPS-xx)", placeholder: "OPS-1" }
+  - type: textarea
+    id: scope
+    attributes: { label: "Scope" }

@@ -15,10 +15,15 @@ def vitals_anomalies(
     ),
     limit: int = Query(200, ge=1, le=2000),
     offset: int = Query(0, ge=0),
+    days: Optional[int] = Query(None, ge=1, le=365),
 ) -> Dict[str, Any]:
     dsn = dsn_from_env()
     where: List[str] = ["1=1"]
     params: List[Any] = []
+    # allow days as a convenience when since is not provided
+    if not since and days:
+        where.append("effective_time >= now() - make_interval(days => %s)")
+        params.append(days)
     if since:
         where.append("effective_time >= %s")
         params.append(since)
@@ -40,3 +45,7 @@ def vitals_anomalies(
         cols = [d.name for d in cur.description]
         rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     return {"rows": rows, "limit": limit, "offset": offset}
+
+
+# compatibility alias for tests/UI hitting /vitals/anomalies
+router.add_api_route("/vitals/anomalies", vitals_anomalies, methods=["GET"])

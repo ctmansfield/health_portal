@@ -1,0 +1,16 @@
+name: UI Task
+description: Dashboard work
+labels: ["area/ui","type/feature"]
+body:
+  - type: input
+    id: id
+    attributes: { label: "ID (UI-xx)", placeholder: "UI-1" }
+  - type: textarea
+    id: scope
+    attributes: { label: "Scope" }
+  - type: checkboxes
+    id: api
+    attributes:
+      label: API contract
+      options:
+        - label: "Consuming stable OpenAPI v1 only (no DB access)"

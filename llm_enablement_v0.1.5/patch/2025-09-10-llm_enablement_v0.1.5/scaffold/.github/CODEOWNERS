@@ -1,0 +1,6 @@
+# Restrict changes in critical areas
+/services/healthdb-pg-0001/migrations/ @db-team @repo-admins
+/api/openapi.*.yaml                      @app-team @repo-admins
+/app/                                    @app-team
+/docs/                                   @docs-team @repo-admins
+/.github/                                 @repo-admins

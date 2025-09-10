@@ -1,0 +1,16 @@
+name: DB Task
+description: Database migrations or views
+labels: ["area/db","type/feature"]
+body:
+  - type: input
+    id: id
+    attributes: { label: "ID (DB-xx)", placeholder: "DB-1" }
+  - type: textarea
+    id: scope
+    attributes: { label: "Scope", description: "Describe migration or view changes" }
+  - type: checkboxes
+    id: contracts
+    attributes:
+      label: Contracts
+      options:
+        - label: "Requires db_schema_version bump in core/contracts.yaml"
