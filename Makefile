@@ -26,3 +26,9 @@ mirror-fhir:
 
 dump:
 	docker exec -t healthdb pg_dump -U health -d health > /mnt/nas_storage/backups/health_$(shell date +%F).sql
+
+ai-scan:
+	. .venv/bin/activate && python jobs/ai_daily_scan.py --dsn "$(HP_DSN)"
+
+import-fhir:
+	. .venv/bin/activate && python jobs/import_fhir_ndjson.py --file "$(FILE)" --dsn "$(HP_DSN)"
