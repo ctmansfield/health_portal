@@ -1,60 +1,46 @@
 #!/usr/bin/env python3
-import argparse, json, gzip
+import argparse, json, gzip, sys
 from typing import IO
 from hp_etl.db import pg, dsn_from_env
 
-SQL = """
-INSERT INTO fhir_raw.resources(resource_type, resource_id, resource)
-VALUES (%s,%s,%s::jsonb)
-ON CONFLICT (resource_type, resource_id) DO UPDATE
-  SET resource=EXCLUDED.resource, imported_at=now();
-"""
-
-
-def opener(path: str) -> IO[bytes]:
+def opener(path:str) -> IO[bytes]:
     return gzip.open(path, "rb") if path.endswith(".gz") else open(path, "rb")
 
+INSERT_SQL = """
+INSERT INTO fhir_raw.resources (resource_type, resource)
+VALUES (%(rt)s, %(res)s::jsonb)
+ON CONFLICT (resource_type, (resource->>'id')) DO NOTHING
+"""
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--file", required=True)  # .ndjson or .ndjson.gz
     ap.add_argument("--dsn", default=dsn_from_env())
-    ap.add_argument("--batch-size", type=int, default=1000)
-    ap.add_argument("--since", default=None)  # ISO; skip if meta.lastUpdated < since
+    ap.add_argument("--file", required=True)
+    ap.add_argument("--type", help="optional resourceType override (auto-detect if absent)")
     args = ap.parse_args()
 
-    inserted = 0
-    skipped = 0
-    batch = []
-    with opener(args.file) as f:
-        for bline in f:
+    inserted = skipped = bad = 0
+    with opener(args.file) as fh, pg(args.dsn) as conn, conn.cursor() as cur:
+        for i, raw in enumerate(fh, start=1):
             try:
-                obj = json.loads(bline.decode("utf-8"))
+                obj = json.loads(raw.decode("utf-8"))
             except Exception:
-                skipped += 1
+                bad += 1
                 continue
-            rtype = obj.get("resourceType")
+            rt = args.type or obj.get("resourceType")
             rid = obj.get("id")
-            if not rtype or not rid:
-                skipped += 1
+            if not rt or not rid:
+                bad += 1
                 continue
-            if args.since:
-                lu = (obj.get("meta") or {}).get("lastUpdated")
-                if lu and lu < args.since:
-                    skipped += 1
-                    continue
-            batch.append((rtype, rid, json.dumps(obj)))
-            if len(batch) >= args.batch_size:
-                with pg(args.dsn) as conn, conn.cursor() as cur:
-                    cur.executemany(SQL, batch)
-                inserted += len(batch)
-                batch.clear()
-        if batch:
-            with pg(args.dsn) as conn, conn.cursor() as cur:
-                cur.executemany(SQL, batch)
-            inserted += len(batch)
-    print(f"Inserted {inserted}; Skipped {skipped}")
-
+            cur.execute(INSERT_SQL, {"rt": rt, "res": json.dumps(obj)})
+            if cur.rowcount == 1:
+                inserted += 1
+            else:
+                skipped += 1
+            if i % 1000 == 0:
+                conn.commit()
+        conn.commit()
+    print(f"Inserted {inserted}; Skipped {skipped}; Bad {bad}")
 
 if __name__ == "__main__":
     main()

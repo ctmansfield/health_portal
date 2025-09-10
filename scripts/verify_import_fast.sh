@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage:
-#   FAST=1 scripts/verify_import_fast.sh     # default: fast mode
-#   FAST=0 scripts/verify_import_fast.sh     # full mode (can be slower)
-#   TIMEOUT=5s scripts/verify_import_fast.sh # per-query timeout (default 5s)
-#   VIEWS_TIMEOUT=20s scripts/verify_import_fast.sh # timeout for final views section
-
 FAST="${FAST:-1}"
 TIMEOUT="${TIMEOUT:-5s}"
-VIEWS_TIMEOUT="${VIEWS_TIMEOUT:-20s}"   # slightly higher: views often wait on MV refresh / IO
+VIEWS_TIMEOUT="${VIEWS_TIMEOUT:-20s}"
 
 _psql() {
   local q="$1"
@@ -22,8 +16,7 @@ _psql_views() {
 }
 
 echo "== FHIR resource counts =="
-_psql "SELECT resource_type, COUNT(*) AS n
-       FROM fhir_raw.resources GROUP BY 1 ORDER BY 1;"
+_psql "SELECT resource_type, COUNT(*) AS n FROM fhir_raw.resources GROUP BY 1 ORDER BY 1;"
 
 echo
 echo "== Totals (should be close to ~250 per your manifest) =="
@@ -34,8 +27,7 @@ echo "== Observation date range =="
 _psql "WITH flat AS (
          SELECT (resource->>'effectiveDateTime')::timestamptz AS t
          FROM fhir_raw.resources WHERE resource_type='Observation'
-       )
-       SELECT MIN(t), MAX(t), COUNT(*) FROM flat;"
+       ) SELECT MIN(t), MAX(t), COUNT(*) FROM flat;"
 
 echo
 echo "== Sample Observations (latest 5) =="
@@ -69,21 +61,14 @@ fi
 
 echo
 echo "== duplicates under unique key (should be zero) =="
-HAS_UQ=$(_psql "SELECT 1
-                FROM pg_indexes
-                WHERE schemaname='analytics'
-                  AND indexname='uq_events_person_metric_time'
-                LIMIT 1;" || true)
+HAS_UQ=$(_psql "SELECT 1 FROM pg_indexes WHERE schemaname='analytics' AND indexname='uq_events_person_metric_time' LIMIT 1;" || true)
 if [[ -n "$HAS_UQ" ]]; then
   echo "uq_events_person_metric_time present: OK (skipping heavy duplicate scan)"
 else
   if [[ "$FAST" == "0" ]]; then
     _psql "SELECT person_id, code_system, code, effective_time, COUNT(*) AS c
            FROM analytics.data_events
-           WHERE value_num IS NOT NULL
-             AND code_system IS NOT NULL
-             AND code IS NOT NULL
-             AND effective_time IS NOT NULL
+           WHERE value_num IS NOT NULL AND code_system IS NOT NULL AND code IS NOT NULL AND effective_time IS NOT NULL
            GROUP BY 1,2,3,4 HAVING COUNT(*)>1
            ORDER BY c DESC LIMIT 10;"
   else
@@ -93,10 +78,10 @@ fi
 
 echo
 echo "== vitals views (snippets) =="
-# Use a slightly longer timeout and an index-friendly WHERE on the MV
 _psql_views "SELECT * FROM analytics.v_vitals_latest LIMIT 5;"
+# Use the proven-fast MV you already have (mv_daily_vitals) instead of the wide one
 _psql_views "SELECT day, hr_median, spo2_min
-             FROM analytics.mv_vitals_daily_wide
-             WHERE day >= (current_date - 120)       -- small range to ensure index use
+             FROM analytics.mv_daily_vitals
+             WHERE day >= (current_date - 120)
              ORDER BY day DESC
              LIMIT 7;"
