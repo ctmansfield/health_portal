@@ -10,3 +10,21 @@ __pycache__/
 *.swp
 .DS_Store
 
+# --- health_portal defaults ---
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+
+# Build / generated
+dist/
+build/
+context/arch/*.md        # generated context packs
+incoming/                 # local drop folder (if present inside repo)
+*.log
+
+# OS/editor
+.DS_Store
+Thumbs.db
