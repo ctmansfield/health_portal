@@ -1,0 +1,83 @@
+repo: $GH_REPO
+milestone: "v0.1.x"
+labels:
+  - area/db
+  - area/app
+  - area/ui
+  - type/feature
+  - type/chore
+  - priority/now
+  - priority/next
+  - priority/later
+
+issues:
+  - title: DB-1 Baseline schema & views for reporting
+    body: |
+      Create report, variant, biomarker tables and report_exec_summary view per contracts v1.0.0.
+      DoD: migrations applied in staging; view returns expected columns; rollback tested.
+    labels: [area/db, type/feature, priority/now]
+  - title: DB-2 History & reissue policy tables
+    body: |
+      Append-only history with prior payload hash; reissue versioning.
+      DoD: reissue flow preserves referential integrity; audit readable.
+    labels: [area/db, type/feature, priority/next]
+  - title: DB-3 Indexing strategy for queries
+    body: |
+      Add GIN on findings.variants geneSymbol; index signOut.date.
+      DoD: query plans verified; p95 improved on fixtures.
+    labels: [area/db, type/chore, priority/now]
+  - title: APP-1 Ingest + jsonschema validation
+    body: |
+      Validate report.v1.json and block bad payloads.
+      DoD: failing fixtures rejected; success path measured.
+    labels: [area/app, type/feature, priority/now]
+  - title: APP-2 GET /reports/{id}
+    body: |
+      Full clinician payload per OpenAPI v1.
+      DoD: contract tests pass; snapshot render available via dev route.
+    labels: [area/app, type/feature, priority/now]
+  - title: APP-3 GET /reports/{id}/summary
+    body: |
+      Dashboard card payload; cached by report id + version.
+      DoD: contract tests & cache hit rate in logs.
+    labels: [area/app, type/feature, priority/now]
+  - title: APP-4 GET /reports/{id}/patient
+    body: |
+      Patient-mode HTML/JSON; plain-language rules.
+      DoD: readability score; glossary links; print snapshot.
+    labels: [area/app, type/feature, priority/next]
+  - title: APP-5 Sign-out flow & payload hashing
+    body: |
+      Compute SHA-256 over canonical payload at sign-out; lock report.
+      DoD: hash stored and verified; reissue increments version.
+    labels: [area/app, type/feature, priority/now]
+  - title: APP-6 FHIR/VRS exporters (stubs)
+    body: |
+      DR/Obs/Cond/Proc minimal bundle; VRS shells from HGVS.
+      DoD: validator passes sample bundle; toggled via flag.
+    labels: [area/app, type/feature, priority/next]
+  - title: APP-7 Renderer snapshot tests
+    body: |
+      Golden files for clinician & patient HTML; CI gate.
+      DoD: snapshots stored; changes require approval.
+    labels: [area/app, type/chore, priority/now]
+  - title: UI-1 Summary card
+    body: |
+      Result banner, key findings list, biomarkers, trials count.
+      DoD: contract snapshot; loading & error states.
+    labels: [area/ui, type/feature, priority/now]
+  - title: UI-2 Full clinician report view
+    body: |
+      Sectioned layout; deep links; print-friendly.
+      DoD: WCAG basic checks; snapshot.
+    labels: [area/ui, type/feature, priority/next]
+  - title: UI-3 Patient-mode view & PDF
+    body: |
+      Plain-language view; downloadable PDF.
+      DoD: readability score; print snapshot; disclaimer present.
+    labels: [area/ui, type/feature, priority/next]
+  - title: OPS-1 VERIFY_ALL.sh end-to-end checks
+    body: |
+      Script runs schema validation, OpenAPI lint, sample render, and unit tests.
+      DoD: CI job green; docs updated.
+    labels: [type/chore, priority/now]

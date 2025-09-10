@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from .routers.anomalies import router as anomalies_router
 from .routers.vitals import router as vitals_router
 from fastapi.middleware.cors import CORSMiddleware
 from .routers.summary import router as summary_router
@@ -18,6 +19,7 @@ app.add_middleware(
 
 app.include_router(summary_router, prefix="/api")
 app.include_router(vitals_router, prefix="/api")
+app.include_router(anomalies_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(exports_router, prefix="/api")
 

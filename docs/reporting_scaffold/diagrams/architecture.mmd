@@ -1,0 +1,26 @@
+
+flowchart LR
+  subgraph Frontend["health_portal Dashboard"]
+    UI[Clinician Dashboard] -->|GET /reports/:id/summary| API
+    PF[Patient View] -->|GET /reports/:id/patient| API
+  end
+
+  subgraph App["Application Layer"]
+    API[Reports API (OpenAPI v1)] --> REND[Renderer]
+    API --> FHIR[FHIR/VRS Exporters]
+    API -->|read/write| DB[(Postgres)]
+    ING[Ingress Adapter] -->|validate schemas| DB
+    SIG[Sign-out Service] --> DB
+  end
+
+  subgraph DB["Database (services/healthdb-pg-0001)"]
+    DB <--> VIEWS[(report_exec_summary, analytics views)]
+  end
+
+  subgraph Pipelines["genomics_stack"]
+    PIPE[Pipeline Jobs] -->|emit report.v1.json| ING
+    PIPE -->|provenance| DB
+  end
+
+  classDef core fill:#1f77b4,stroke:#0d3b66,stroke-width:1px,color:#fff;
+  class API,DB,ING,SIG,REND,FHIR,PIPE core;

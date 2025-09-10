@@ -165,3 +165,35 @@ def require_role(*roles):
         return user
 
     return dep
+
+
+# Admin session management endpoints
+@router.get("/admin/sessions")
+def admin_list_sessions(auth=Depends(require_role("admin"))):
+    """Return recent sessions (session_id, user_id, expires_at, created_at)."""
+    sql = "SELECT session_id, user_id, expires_at, created_at FROM analytics.sessions ORDER BY created_at DESC LIMIT 100"
+    items = []
+    with db.pg() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(sql)
+            rows = cur.fetchall()
+            cols = [c[0] for c in cur.description]
+            for r in rows:
+                items.append(dict(zip(cols, r)))
+        except Exception:
+            items = []
+    return {"sessions": items}
+
+
+@router.post("/admin/sessions/{session_id}/revoke")
+def admin_revoke_session(session_id: str, auth=Depends(require_role("admin"))):
+    sql = "DELETE FROM analytics.sessions WHERE session_id = %s"
+    with db.pg() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(sql, (session_id,))
+            # optional: check rowcount
+        except Exception:
+            return {"ok": False, "error": "failed"}
+    return {"ok": True}
