@@ -1,0 +1,2 @@
+- Use tools/hp_patch_install.sh to apply patches from /mnt/nas_share/incoming/<patch_dir>
+- Patches live under repo/patch/
