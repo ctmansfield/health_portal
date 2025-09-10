@@ -1,0 +1,5 @@
+name: DB Task
+body:
+  - type: input
+    id: id
+    attributes: { label: ID, placeholder: DB-1 }

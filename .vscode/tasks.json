@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "blockId",
+      "type": "promptString",
+      "description": "Block ID (e.g., DB-1, APP-2, UI-1)"
+    },
+    {
+      "id": "assignee",
+      "type": "promptString",
+      "description": "Assignee (blank uses Git author)",
+      "default": ""
+    },
+    {
+      "id": "commitMsg",
+      "type": "promptString",
+      "description": "Commit message for close (optional)",
+      "default": ""
+    },
+    {
+      "id": "assigneesMap",
+      "type": "promptString",
+      "description": "Assignees map (DB-1:Alice,APP-2:Bob)",
+      "default": ""
+    },
+    {
+      "id": "baseBranch",
+      "type": "promptString",
+      "description": "Base branch for PRs",
+      "default": "main"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Blocks: List",
+      "type": "shell",
+      "command": "bash scripts/block/list_blocks.sh"
+    },
+    {
+      "label": "Blocks: Assign",
+      "type": "shell",
+      "command": "bash scripts/block/assign_block.sh ${input:blockId} ${input:assignee}"
+    },
+    {
+      "label": "Blocks: Open (scaffold + open in VS)",
+      "type": "shell",
+      "command": "bash scripts/block/open_block.sh ${input:blockId} ${input:assignee} && bash scripts/block/vs_open_block.sh ${input:blockId}"
+    },
+    {
+      "label": "Blocks: Close (commit)",
+      "type": "shell",
+      "command": "bash scripts/block/close_block.sh ${input:blockId} \"${input:commitMsg}\""
+    },
+    {
+      "label": "Blocks: Seed Top 3",
+      "type": "shell",
+      "command": "bash scripts/block/seed_top3.sh --assignees \"${input:assigneesMap}\""
+    },
+    {
+      "label": "Blocks: Push Branches (and open PRs)",
+      "type": "shell",
+      "command": "bash scripts/block/push_block_branches.sh --open-pr --base ${input:baseBranch}"
+    }
+  ]
+}

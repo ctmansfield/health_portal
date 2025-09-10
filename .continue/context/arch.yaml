@@ -1,0 +1,14 @@
+name: arch
+version: 1.0.0
+schema: v1
+context:
+  - provider: file
+    name: arch
+    params:
+      globs:
+        - docs/architecture/**/*.md
+        - docs/**/System_Architecture*.md
+        - docs/**/LLM_Server*.md
+        - docs/**/ADR*.md
+        - context/arch/LLM_SERVER_ARCH.md
+      maxBytes: 400000

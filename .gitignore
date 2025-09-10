@@ -28,3 +28,4 @@ incoming/                 # local drop folder (if present inside repo)
 # OS/editor
 .DS_Store
 Thumbs.db
+context/arch/*.md

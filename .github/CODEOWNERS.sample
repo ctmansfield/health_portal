@@ -1,0 +1,2 @@
+/services/healthdb-pg-0001/migrations/ @db-team @repo-admins
+/api/openapi.*.yaml @app-team @repo-admins
