@@ -13,18 +13,14 @@ DO UPDATE SET
   meta      = COALESCE(analytics.data_events.meta, '{}'::jsonb) || EXCLUDED.meta;
 """
 
-LOINC_NUMERIC = {
-    "8867-4": "1/min",  # Heart rate
-    "59408-5": "ratio",  # SpO2 (normalize to 0..1)
-    "29463-7": "kg",  # Body weight
+NUM_CODES = {
+    "8867-4": "1/min",  # HR
+    "59408-5": "ratio",  # SpO2 (0..1)
+    "29463-7": "kg",  # Weight
     "39156-5": "kg/m2",  # BMI
-    "8480-6": "mm[Hg]",  # Systolic
-    "8462-4": "mm[Hg]",  # Diastolic
+    "8480-6": "mm[Hg]",  # SBP
+    "8462-4": "mm[Hg]",  # DBP
 }
-
-
-def _emit(cur, dsn_rec):
-    cur.execute(UPSERT_SQL, dsn_rec)
 
 
 def main():
@@ -34,15 +30,11 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()
 
-    # Pull observations that are either a direct numeric value or a BP panel with components
     sql = f"""
-      SELECT id, effective_time, code_system, code, value_num, unit, resource
-      FROM fhir_raw.v_observation_flat
-      WHERE code_system = 'http://loinc.org'
-        AND (
-             code IN ('8867-4','59408-5','29463-7','39156-5','85354-9','8480-6','8462-4')
-            )
-      ORDER BY last_updated
+      SELECT r.resource
+      FROM fhir_raw.resources r
+      WHERE r.resource_type='Observation'
+      ORDER BY r.imported_at
       {('LIMIT %s' if args.limit else '')}
     """
     params = [args.limit] if args.limit else []
@@ -50,74 +42,67 @@ def main():
     inserted = updated = skipped = 0
     with pg(args.dsn) as conn, conn.cursor() as cur:
         cur.execute(sql, params)
-        for rid, ts, cs, code, val, unit, resource in cur.fetchall():
-            if ts is None:
+        for (res,) in cur.fetchall():
+            if not isinstance(res, dict) or res.get("resourceType") != "Observation":
                 skipped += 1
                 continue
 
-            # Normalize/expand
-            to_emit = []
-            if code == "59408-5" and val is not None:
-                try:
-                    v = float(val)
-                    val = v / (100.0 if v > 1.5 else 1.0)
-                except Exception:
-                    skipped += 1
-                    continue
-                to_emit.append(
-                    ("59408-5", float(val), unit or LOINC_NUMERIC["59408-5"])
-                )
-            elif code == "85354-9":
-                # BP panel: look into components in raw resource
-                try:
-                    comps = resource.get("component") or []
-                    for c in comps:
-                        loinc = (((c.get("code") or {}).get("coding") or [{}])[0]).get(
-                            "code"
-                        )
-                        if loinc in ("8480-6", "8462-4"):
-                            q = c.get("valueQuantity") or {}
-                            v = q.get("value")
-                            if v is None:
-                                continue
-                            to_emit.append(
-                                (loinc, float(v), q.get("unit") or LOINC_NUMERIC[loinc])
-                            )
-                except Exception:
-                    skipped += 1
-                    continue
-            else:
-                if val is None:
-                    # might be a component-only observation; skip
-                    skipped += 1
-                    continue
-                to_emit.append((code, float(val), unit or LOINC_NUMERIC.get(code, "")))
+            eff = res.get("effectiveDateTime")
+            code = (((res.get("code") or {}).get("coding") or []) or [{}])[0]
+            c_system = (code.get("system") or "").lower()
+            c_code = code.get("code")
+            vq = res.get("valueQuantity") or {}
+            comp = res.get("component") or []
 
-            for ccode, cval, cunit in to_emit:
-                meta = json.dumps({"fhir_id": rid})
-                rec = dict(
-                    person_id=args.person_id,
-                    source="fhir",
-                    kind="Observation",
-                    code_system="LOINC",
-                    code=ccode,
-                    value_num=cval,
-                    unit=cunit,
-                    effective_time=ts,
-                    meta=meta,
-                )
-                try:
-                    _emit(cur, rec)
-                    if cur.rowcount == 1:
-                        inserted += 1
-                    else:
-                        updated += 1
-                except Exception:
-                    conn.rollback()
-                    skipped += 1
-                else:
-                    conn.commit()
-    print(f"inserted={inserted} updated={updated} skipped={skipped}")
+            emissions = []
+
+            # single numeric values
+            if c_code in NUM_CODES and vq.get("value") is not None and eff:
+                val = float(vq["value"])
+                unit = vq.get("unit") or NUM_CODES[c_code]
+                if c_code == "59408-5" and val > 1.5:  # normalize to 0..1
+                    val = val / 100.0
+                emissions.append((c_code, val, unit))
+
+            # BP panel 85354-9 → components 8480-6 / 8462-4
+            if c_code == "85354-9" and comp and eff:
+                for part in comp:
+                    pcode = (((part.get("code") or {}).get("coding") or []) or [{}])[
+                        0
+                    ].get("code")
+                    pvq = part.get("valueQuantity") or {}
+                    if pcode in ("8480-6", "8462-4") and pvq.get("value") is not None:
+                        emissions.append(
+                            (
+                                pcode,
+                                float(pvq["value"]),
+                                (pvq.get("unit") or NUM_CODES[pcode]),
+                            )
+                        )
+
+            if not emissions or not eff:
+                skipped += 1
+                continue
+
+            for loinc, val, unit in emissions:
+                rec = {
+                    "person_id": args.person_id,
+                    "source": "FHIR",
+                    "kind": "observation",
+                    "code_system": "LOINC" if "loinc" in c_system else c_system.upper(),
+                    "code": loinc,
+                    "value_num": val,
+                    "unit": unit,
+                    "effective_time": eff,
+                    "meta": json.dumps(
+                        {"obs_id": res.get("id"), "display": code.get("display")}
+                    ),
+                }
+                cur.execute(UPSERT_SQL, rec)
+                # psycopg3 rowcount is 1 for both insert & update; we won't distinguish here
+                inserted += 1
+
+    print(f"inserted={inserted} skipped={skipped}")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 import datetime as dt
 import os
@@ -140,7 +141,7 @@ def test_dashboard_render(monkeypatch):
     assert r.status_code == 200 and "Sign in" in r.text
 
     # post login and follow redirect
-    r = client.post("/login", data={"api_key": "testkey"}, allow_redirects=True)
+    r = client.post("/login", data={"api_key": "testkey"})
     assert r.status_code == 200
     # load dashboard
     r = client.get("/dashboard")

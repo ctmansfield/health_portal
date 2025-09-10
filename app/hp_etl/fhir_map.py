@@ -7,7 +7,7 @@ LOINC_SPO2 = "59408-5"
 
 
 def _now_isoz():
-    return datetime.utcnow().replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def observation_to_event(obs: dict) -> Optional[dict]:

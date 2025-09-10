@@ -9,10 +9,11 @@ GROUP BY 1
 ORDER BY n DESC, last_seen DESC;
 """
 
+
 def main():
     dsn = dsn_from_env()
     with pg(dsn) as conn, conn.cursor() as cur:
-        for rt in ("Observation","Patient"):
+        for rt in ("Observation", "Patient"):
             cur.execute(SQL_BY_TYPE, (rt,))
             rows = cur.fetchall()
             extras = [r for r in rows if r[1] > 1]
@@ -31,5 +32,7 @@ def main():
                 print(f"  {rt} {rid} x{n} (first={first_seen}, last={last_seen})")
         else:
             print("\nNo JSON-level (type,id) duplicates detected.")
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     main()

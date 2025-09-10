@@ -1,41 +1,24 @@
 #!/usr/bin/env python3
-import argparse, os, csv, json, zipfile, datetime as dt
+import argparse, os, csv, zipfile, datetime as dt
 from io import StringIO
 from hp_etl.db import pg, dsn_from_env
 
+EXPORT_DIR = "/mnt/nas_storage/exports"
 
-def fetch_events(dsn):
+
+def fetch(dsn, sql):
     with pg(dsn) as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-          SELECT person_id, source, kind, code_system, code, value_num, unit, effective_time, meta
-          FROM analytics.data_events
-          ORDER BY effective_time
-        """
-        )
+        cur.execute(sql)
         cols = [d.name for d in cur.description]
-        return cols, cur.fetchall()
-
-
-def fetch_findings(dsn):
-    with pg(dsn) as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-          SELECT person_id, finding_time, metric, method, score, level, "window", context
-          FROM analytics.ai_findings
-          ORDER BY finding_time
-        """
-        )
-        cols = [d.name for d in cur.description]
-        return cols, cur.fetchall()
+        rows = cur.fetchall()
+    return cols, rows
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default=dsn_from_env())
-    ap.add_argument("--outdir", default="/mnt/nas_storage/exports")
-    ap.add_argument("--pdf", default=None, help="optional path to include in the zip")
-    ap.add_argument("--note", default="export bundle")
+    ap.add_argument("--outdir", default=EXPORT_DIR)
+    ap.add_argument("--pdf", default=None)
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -43,31 +26,35 @@ def main():
     outzip = os.path.join(args.outdir, f"health_bundle_{ts}.zip")
 
     with zipfile.ZipFile(outzip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        # CSV: events
-        ecols, erows = fetch_events(args.dsn)
+        ecols, erows = fetch(
+            args.dsn,
+            """
+            SELECT person_id, source, kind, code_system, code, value_num, unit, effective_time, meta
+            FROM analytics.data_events ORDER BY effective_time;
+        """,
+        )
         sio = StringIO()
         w = csv.writer(sio)
         w.writerow(ecols)
         w.writerows(erows)
         zf.writestr("events.csv", sio.getvalue())
 
-        # CSV: findings
-        fcols, frows = fetch_findings(args.dsn)
-        sio = StringIO()
-        w = csv.writer(sio)
-        w.writerow(fcols)
-        w.writerows(frows)
-        zf.writestr("findings.csv", sio.getvalue())
+        try:
+            fcols, frows = fetch(
+                args.dsn,
+                """
+                SELECT person_id, finding_time, metric, method, score, level, "window", context
+                FROM analytics.ai_findings ORDER BY finding_time;
+            """,
+            )
+            sio = StringIO()
+            w = csv.writer(sio)
+            w.writerow(fcols)
+            w.writerows(frows)
+            zf.writestr("findings.csv", sio.getvalue())
+        except Exception:
+            pass
 
-        # manifest.json
-        manifest = {
-            "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-            "note": args.note,
-            "counts": {"events": len(erows), "findings": len(frows)},
-        }
-        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
-
-        # optional PDF
         if args.pdf and os.path.exists(args.pdf):
             zf.write(args.pdf, arcname=os.path.basename(args.pdf))
 

@@ -3,8 +3,10 @@ import argparse, json, gzip, sys
 from typing import IO
 from hp_etl.db import pg, dsn_from_env
 
-def opener(path:str) -> IO[bytes]:
+
+def opener(path: str) -> IO[bytes]:
     return gzip.open(path, "rb") if path.endswith(".gz") else open(path, "rb")
+
 
 INSERT_SQL = """
 INSERT INTO fhir_raw.resources (resource_type, resource)
@@ -12,11 +14,14 @@ VALUES (%(rt)s, %(res)s::jsonb)
 ON CONFLICT (resource_type, (resource->>'id')) DO NOTHING
 """
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default=dsn_from_env())
     ap.add_argument("--file", required=True)
-    ap.add_argument("--type", help="optional resourceType override (auto-detect if absent)")
+    ap.add_argument(
+        "--type", help="optional resourceType override (auto-detect if absent)"
+    )
     args = ap.parse_args()
 
     inserted = skipped = bad = 0
@@ -41,6 +46,7 @@ def main():
                 conn.commit()
         conn.commit()
     print(f"Inserted {inserted}; Skipped {skipped}; Bad {bad}")
+
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@ Index genomics risk report files into analytics.genomics_reports.
 - Extracts report_id (filename), optional person_id (from filename pattern), and inserts/updates the table.
 """
 import os, argparse, json, datetime as dt
+from datetime import timezone
 from hp_etl.db import pg
 
 DEFAULT_DIR = "/mnt/nas_storage/genomics-stack/risk_reports/out"
@@ -47,7 +48,9 @@ def main():
             person_id = guess_person_id(fn)
             # generated_at from mtime
             generated_at = (
-                dt.datetime.utcfromtimestamp(os.path.getmtime(path)).isoformat() + "Z"
+                dt.datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
             )
             summary = json.dumps({})
             cur.execute(
