@@ -1,0 +1,9 @@
+flowchart TB
+subgraph App
+API-->Renderer
+API-->FHIR
+API-->Signout
+end
+Renderer-->DB
+FHIR-->DB
+Signout-->DB

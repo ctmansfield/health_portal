@@ -15,6 +15,11 @@ down:
 verify:
 	cd services/healthdb-pg-0001 && ./verify.sh
 
+seed:
+	@echo "Applying DB init migrations and seeding sample data"
+	bash scripts/db/apply_migrations.sh
+	. .venv/bin/activate && python jobs/seed_sample_data.py --genomics --findings --days 30
+
 psql:
 	cd services/healthdb-pg-0001 && ./scripts/psql.sh
 
@@ -35,3 +40,19 @@ import-fhir:
 
 api:
 	. .venv/bin/activate && HP_DSN="$(HP_DSN)" uvicorn app.api.main:app --host 0.0.0.0 --port 8800 --reload
+.PHONY: anomalies-sql anomalies-list anomalies-set refresh-views
+
+anomalies-sql:
+\tservices/healthdb-pg-0001/scripts/psql.sh < services/healthdb-pg-0001/init/053_anomaly_thresholds.sql
+\tservices/healthdb-pg-0001/scripts/psql.sh < services/healthdb-pg-0001/init/051_vitals_anomalies.sql
+
+anomalies-list:
+\tcurl -s "http://127.0.0.1:8810/api/anomalies/thresholds" | jq .
+
+anomalies-set:
+\tcurl -s -X PUT "http://127.0.0.1:8810/api/anomalies/thresholds/8867-4" \\
+\t  -H 'Content-Type: application/json' \\
+\t  -d '{"code":"8867-4","min_val":20,"max_val":210,"reason":"HR test","enabled":true}' | jq .
+
+refresh-views:
+\t. .venv/bin/activate && python jobs/refresh_views.py

@@ -1,0 +1,26 @@
+# PROMPT for LLM Coder — {{id}} ({{title}})
+
+You are coding for the `health_portal` project using the **Coding Blocks** system.
+
+## Boundaries
+- Component: {{component}} — only touch the paths listed below.
+- Do **not** modify other components.
+- For any contract change, update `core/contracts.yaml` (and related artifacts) explicitly.
+
+## Paths Allowed
+{% for p in touches %}- {{ p }}
+{% endfor %}
+
+## Acceptance
+{% for a in acceptance %}- {{ a }}
+{% endfor %}
+
+## Helpful Docs
+{% for d in docs %}- {{ d }}
+{% endfor %}
+
+## Steps
+1) Read the docs above.
+2) Implement the acceptance items.
+3) Run any available local checks (VERIFY_ALL.sh if present).
+4) Commit via `scripts/block/close_block.sh {{id}} "commit message"`.

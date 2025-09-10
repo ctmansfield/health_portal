@@ -1,0 +1,22 @@
+# {{id}} — {{title}}
+
+**Component:** {{component}}
+**Status:** {{status}}
+**Assignee:** {{assignee}}
+**Opened:** {{opened_at}}
+
+## Context & Links
+{% for d in docs %}- {{ d }}
+{% endfor %}
+
+## Paths You May Touch (stay in your lane)
+{% for p in touches %}- {{ p }}
+{% endfor %}
+
+## Acceptance Criteria
+{% for a in acceptance %}- [ ] {{ a }}
+{% endfor %}
+
+## Notes
+- Respect the Contracts Registry (core/contracts.yaml) for version bumps.
+- Do not cross boundaries (DB vs App vs UI). Use the API for UI work.
