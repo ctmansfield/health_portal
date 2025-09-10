@@ -1,2 +1,3 @@
-- Use tools/hp_patch_install.sh to apply patches from /mnt/nas_share/incoming/<patch_dir>
-- Patches live under repo/patch/
+- Use `tools/hp_patch_install.sh` to apply patches from `/mnt/nas_share/incoming/<patch_dir>`.
+- Patch sources live under `/mnt/nas_storage/repos/health_portal/patch/`.
+- After editing a patch in VS Code, re-rsync it to `/mnt/nas_share/incoming` and re-run the installer.

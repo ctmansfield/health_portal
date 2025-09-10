@@ -1,0 +1,3 @@
+service_name: fhir-map-0002
+root_mode: true
+commit_message: "feat(etl): map FHIR Observations into analytics.data_events with idempotent de-dupe"

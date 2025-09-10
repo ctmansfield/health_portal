@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 Apple Health export importer.
-Usage: python jobs/import_apple_health.py --zip /path/to/export.zip --person-id me --dsn postgresql://...
+Usage: python jobs/import_apple_health.py --zip /path/to/export.zip --person-id me --dsn postgresql://... [--csv-out path.csv] [--ndjson-out path.ndjson]
 - Streams export.xml from the zip (handles large files).
 - Inserts rows into analytics.data_events.
 - Uses analytics.etl_state['apple_last_ts'] to only import new samples.
+- Optionally writes output as CSV and/or NDJSON.
 """
-import argparse, zipfile, os, json, datetime as dt, xml.etree.ElementTree as ET
+import argparse, zipfile, os, json, datetime as dt, xml.etree.ElementTree as ET, csv
 from hp_etl.events import bulk_insert
 from hp_etl.state import get_state, set_state
 
@@ -19,6 +20,7 @@ LOINC = {
     "DiastolicBloodPressure": ("LOINC", "8462-4", "Diastolic blood pressure", "mm[Hg]"),
 }
 
+
 def to_utc(s: str) -> str:
     # Apple uses local w/ offset like 2025-09-09 08:12:34 -0400
     # normalize to ISO Z
@@ -29,11 +31,18 @@ def to_utc(s: str) -> str:
     except Exception:
         return None
 
+
 def parse_record(elem):
-    t = elem.attrib.get("type","").split(":")[-1]  # e.g., HKQuantityTypeIdentifierHeartRate
-    t = t.replace("HKQuantityTypeIdentifier", "").replace("HKCategoryTypeIdentifier", "")
-    start = elem.attrib.get("startDate"); end = elem.attrib.get("endDate")
-    val = elem.attrib.get("value"); unit = elem.attrib.get("unit")
+    t = elem.attrib.get("type", "").split(":")[
+        -1
+    ]  # e.g., HKQuantityTypeIdentifierHeartRate
+    t = t.replace("HKQuantityTypeIdentifier", "").replace(
+        "HKCategoryTypeIdentifier", ""
+    )
+    start = elem.attrib.get("startDate")
+    end = elem.attrib.get("endDate")
+    val = elem.attrib.get("value")
+    unit = elem.attrib.get("unit")
     device = elem.attrib.get("sourceName") or elem.attrib.get("device")
     start_utc = to_utc(start) if start else None
     end_utc = to_utc(end) if end else None
@@ -42,12 +51,25 @@ def parse_record(elem):
         # period event
         return {
             "kind": "Sleep",
-            "code_system": None, "code": None, "display": "Sleep",
-            "effective_time": None, "effective_start": start_utc, "effective_end": end_utc,
-            "value_num": None, "value_text": elem.attrib.get("value"), "unit": None,
-            "device_id": device, "status": "final",
+            "code_system": None,
+            "code": None,
+            "display": "Sleep",
+            "effective_time": None,
+            "effective_start": start_utc,
+            "effective_end": end_utc,
+            "value_num": None,
+            "value_text": elem.attrib.get("value"),
+            "unit": None,
+            "device_id": device,
+            "status": "final",
         }
-    if t in ("HeartRate","OxygenSaturation","BodyMass","SystolicBloodPressure","DiastolicBloodPressure"):
+    if t in (
+        "HeartRate",
+        "OxygenSaturation",
+        "BodyMass",
+        "SystolicBloodPressure",
+        "DiastolicBloodPressure",
+    ):
         cs, code, disp, default_unit = LOINC[t]
         unit = unit or default_unit
         # instant measurement uses end time if present else start
@@ -58,23 +80,63 @@ def parse_record(elem):
             vnum = None
         return {
             "kind": "Observation",
-            "code_system": cs, "code": code, "display": disp,
-            "effective_time": eff, "effective_start": None, "effective_end": None,
-            "value_num": vnum, "value_text": None, "unit": unit,
-            "device_id": device, "status": "final",
+            "code_system": cs,
+            "code": code,
+            "display": disp,
+            "effective_time": eff,
+            "effective_start": None,
+            "effective_end": None,
+            "value_num": vnum,
+            "value_text": None,
+            "unit": unit,
+            "device_id": device,
+            "status": "final",
         }
     # skip others for now
     return None
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--zip", required=True)
     ap.add_argument("--person-id", default="me")
     ap.add_argument("--dsn", default=None)
+    ap.add_argument("--csv-out", default=None)
+    ap.add_argument("--ndjson-out", default=None)
     args = ap.parse_args()
+
+    # Ensure staging dirs for outputs, if present
+    for out_path in [args.csv_out, args.ndjson_out]:
+        if out_path:
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
     last = get_state("apple_last_ts", args.dsn)
     max_ts_seen = last
+
+    # These are the columns in table, minus the id
+    csv_columns = [
+        "person_id",
+        "source",
+        "raw",
+        "meta",
+        "kind",
+        "code_system",
+        "code",
+        "display",
+        "effective_time",
+        "effective_start",
+        "effective_end",
+        "value_num",
+        "value_text",
+        "unit",
+        "device_id",
+        "status",
+    ]
+    csv_file = open(args.csv_out, "w", newline="") if args.csv_out else None
+    ndjson_file = open(args.ndjson_out, "w") if args.ndjson_out else None
+    csv_writer = csv.DictWriter(csv_file, fieldnames=csv_columns) if csv_file else None
+    if csv_writer:
+        csv_writer.writeheader()
 
     with zipfile.ZipFile(args.zip) as z:
         # find export.xml
@@ -82,7 +144,7 @@ def main():
         if not name:
             raise SystemExit("export.xml not found in zip")
         with z.open(name) as f:
-            it = ET.iterparse(f, events=("start","end"))
+            it = ET.iterparse(f, events=("start", "end"))
             _, root = next(it)  # get root
             batch = []
             for ev, el in it:
@@ -94,11 +156,20 @@ def main():
                             pass
                         else:
                             row = dict(
-                                person_id=args.person_id, source="apple_health", raw=json.dumps(el.attrib),
+                                person_id=args.person_id,
+                                source="apple_health",
+                                raw=json.dumps(el.attrib),
                                 meta=json.dumps({"file": name}),
-                                **rec
+                                **rec,
                             )
                             batch.append(row)
+
+                            # Write to CSV/NDJSON if requested
+                            if csv_writer:
+                                csv_writer.writerow(row)
+                            if ndjson_file:
+                                ndjson_file.write(json.dumps(row) + "\n")
+
                             if eff and (max_ts_seen is None or eff > max_ts_seen):
                                 max_ts_seen = eff
                         if len(batch) >= 1000:
@@ -109,9 +180,15 @@ def main():
             if batch:
                 bulk_insert(batch, args.dsn)
 
+    if csv_file:
+        csv_file.close()
+    if ndjson_file:
+        ndjson_file.close()
+
     if max_ts_seen:
         set_state("apple_last_ts", max_ts_seen, args.dsn)
         print("Updated apple_last_ts ->", max_ts_seen)
+
 
 if __name__ == "__main__":
     main()

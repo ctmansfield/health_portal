@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-yaml
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        name: black (project only)
+        entry: black
+        pass_filenames: true
+        # Only format our project trees; this keeps .venv out no matter what
+        files: ^(app/|srv/|jobs/|patch/|docs/|tests/|scripts/).*\.(py|ipynb)$
+        # Extra guard in case someone widens files/types later
+        args:
+          - --extend-exclude
+          - ^(\.venv|env|.*site-packages|.*dist-info)(/|$)
+        exclude: ^$

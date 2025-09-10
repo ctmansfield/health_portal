@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Genomics Reports</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="header"><h1>Genomics — Reports</h1></div>
+  <div class="container">
+    <div class="card">
+      <h2>Available Reports</h2>
+      <div class="table">
+        <table>
+          <thead><tr><th>Report ID</th><th>Person</th><th>Filename</th><th>Generated</th><th></th></tr></thead>
+          <tbody>
+          {% for r in reports %}
+            <tr>
+              <td>{{ r.report_id }}</td>
+              <td>{{ r.person_id }}</td>
+              <td>{{ r.filename }}</td>
+              <td>{{ r.generated_at }}</td>
+              <td><a href="/genomics/reports/{{ r.report_id }}">View</a></td>
+            </tr>
+          {% endfor %}
+          {% if reports|length == 0 %}
+            <tr><td colspan="5">No reports found.</td></tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

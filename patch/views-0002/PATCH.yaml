@@ -1,0 +1,3 @@
+service_name: views-0002
+root_mode: true
+commit_message: "fix(sql): complete analytics/FHIR views + correct refresh script path"

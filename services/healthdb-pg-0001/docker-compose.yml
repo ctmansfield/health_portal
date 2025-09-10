@@ -3,7 +3,7 @@ services:
     image: postgres:16
     container_name: healthdb
     env_file: ./.env
-    ports: ["${PGPORT:-55432}:5432"]
+    ports: ["${HOST_PGPORT:-55432}:5432"]     # host:container
     volumes:
       - ${LOCAL_PGDATA_HOST}:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d:ro
@@ -15,8 +15,12 @@ services:
     restart: unless-stopped
 
   adminer:
-    image: adminer:4
+    # you can pin a newer version or just use latest
+    image: adminer:latest
     container_name: healthdb_adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_DRIVER: pgsql
     ports: ["18080:8080"]
     depends_on: [db]
     restart: unless-stopped

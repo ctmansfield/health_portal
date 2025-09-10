@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Events</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="header"><h1>Events</h1></div>
+  <div class="container">
+    <div class="card">
+      <h2>Recent Events</h2>
+      <div class="table">
+        <table>
+          <thead><tr><th>Time</th><th>Code</th><th>Value</th><th>Unit</th><th>Meta</th></tr></thead>
+          <tbody>
+          {% for e in events %}
+            <tr>
+              <td>{{ e.effective_time }}</td>
+              <td>{{ e.display or e.code }}</td>
+              <td>{{ e.value_num }}</td>
+              <td>{{ e.unit }}</td>
+              <td>{{ e.meta }}</td>
+            </tr>
+          {% endfor %}
+          {% if events|length == 0 %}
+            <tr><td colspan="5">No events found.</td></tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

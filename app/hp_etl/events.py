@@ -13,6 +13,7 @@ INSERT INTO analytics.data_events (
 )
 """
 
+
 def bulk_insert(rows: list[dict[str, Any]], dsn: Optional[str] = None):
     if not rows:
         return 0

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /mnt/nas_storage/repos/health_portal
-. .venv/bin/activate || true
-# Example calls; adjust ZIP path as you automate exports
-# python jobs/import_apple_health.py --zip /path/to/export.zip --person-id me --dsn postgresql://health:health_pw@localhost:55432/health
-python jobs/mirror_fhir_observations.py --dsn postgresql://health:health_pw@localhost:55432/health
+# Environment
+. /mnt/nas_storage/repos/health_portal/scripts/cron/env.sh
+
+# 1) Refresh materialized views
+/mnt/nas_storage/repos/health_portal/services/healthdb-pg-0001/scripts/apply_views.sh
+
+# 2) (Optional) run AI scan as part of nightly too (cron also runs it at 02:20)
+/usr/bin/env python /mnt/nas_storage/repos/health_portal/jobs/ai_daily_scan.py --dsn "${HP_DSN}"
+
+echo "$(date -Is) nightly done"

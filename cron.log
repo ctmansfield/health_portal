@@ -1,0 +1,11 @@
+NOTICE:  relation "mv_daily_vitals" already exists, skipping
+CREATE MATERIALIZED VIEW
+NOTICE:  relation "idx_mv_daily_vitals_day" already exists, skipping
+CREATE INDEX
+CREATE INDEX
+NOTICE:  relation "uq_mv_daily_vitals" already exists, skipping
+REFRESH MATERIALIZED VIEW
+Views applied/refreshed.
+ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0
+2025-09-10T02:08:02-04:00 nightly done
+ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0

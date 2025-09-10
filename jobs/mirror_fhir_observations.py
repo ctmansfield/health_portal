@@ -7,6 +7,8 @@ import argparse, json, datetime as dt
 from hp_etl.db import pg
 from hp_etl.events import bulk_insert
 from hp_etl.state import get_state, set_state
+from app.hp_etl.coding import normalize_system, normalize_unit
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -38,22 +40,40 @@ def main():
         # e.g. '2025-09-09T12:00:00Z'
         if last and eff <= last:
             continue
-        code = None; system = None; display = None
+        code = None
+        system = None
+        display = None
         coding = (r.get("code") or {}).get("coding") or []
         if coding:
-            system = coding[0].get("system"); code = coding[0].get("code"); display = coding[0].get("display")
-        val = None; unit = None
+            system = coding[0].get("system")
+            code = coding[0].get("code")
+            display = coding[0].get("display")
+        val = None
+        unit = None
         if "valueQuantity" in r:
-            val = r["valueQuantity"].get("value"); unit = r["valueQuantity"].get("unit")
+            val = r["valueQuantity"].get("value")
+            unit = r["valueQuantity"].get("unit")
 
-        out.append(dict(
-            person_id=args.person_id, source="ehr_fhir", kind="Observation",
-            code_system=("LOINC" if system and "loinc" in system.lower() else system),
-            code=code, display=display,
-            effective_time=eff, effective_start=None, effective_end=None,
-            value_num=val, value_text=None, unit=unit,
-            device_id=None, status=r.get("status"), raw=json.dumps(r), meta='{}'
-        ))
+        out.append(
+            dict(
+                person_id=args.person_id,
+                source="ehr_fhir",
+                kind="Observation",
+                code_system=normalize_system(system) if system else None,
+                code=code,
+                display=display,
+                effective_time=eff,
+                effective_start=None,
+                effective_end=None,
+                value_num=val,
+                value_text=None,
+                unit=normalize_unit(unit) if unit else None,
+                device_id=None,
+                status=r.get("status"),
+                raw=json.dumps(r),
+                meta="{}",
+            )
+        )
         if (max_ts is None) or (eff > max_ts):
             max_ts = eff
 
@@ -62,6 +82,7 @@ def main():
     if max_ts:
         set_state("mirror_fhir_obs_last", max_ts, args.dsn)
         print("mirror_fhir_obs_last ->", max_ts)
+
 
 if __name__ == "__main__":
     main()

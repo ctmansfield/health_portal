@@ -1,0 +1,50 @@
+# app/hp_etl/meds.py
+mkdir -p app/hp_etl
+cat > app/hp_etl/meds.py <<'PY'
+from __future__ import annotations
+import csv, io, datetime as dt
+from typing import Iterable, Dict, Any
+
+# Expected CSV headers (case-insensitive):
+# date, time, drug, dose, unit, notes
+# Example: 2025-09-10,08:00,Metoprolol,25,mg,AM dose
+
+def _parse_dt(date_s: str, time_s: str) -> str:
+    date_s = (date_s or "").strip()
+    time_s = (time_s or "00:00").strip()
+    d = dt.date.fromisoformat(date_s)
+    hh, mm = (time_s.split(":") + ["0"])[:2]
+    t = dt.time(int(hh), int(mm))
+    return dt.datetime.combine(d, t, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def read_meds_csv(data: str) -> Iterable[Dict[str, Any]]:
+    f = io.StringIO(data)
+    r = csv.DictReader(f)
+    for row in r:
+        if not row:
+            continue
+        date_s = (row.get("date") or row.get("Date") or "").strip()
+        time_s = (row.get("time") or row.get("Time") or "").strip()
+        drug   = (row.get("drug") or row.get("Drug") or "").strip()
+        dose   = (row.get("dose") or row.get("Dose") or "").strip()
+        unit   = (row.get("unit") or row.get("Unit") or "").strip()
+        notes  = (row.get("notes") or row.get("Notes") or "").strip()
+        if not date_s or not drug or not dose:
+            continue
+        ts = _parse_dt(date_s, time_s)
+        try:
+            val = float(dose)
+        except Exception:
+            continue
+        meta = {}
+        if notes:
+            meta["notes"] = notes
+        yield {
+            "effective_time": ts,
+            "code_system": "LOCAL",
+            "code": f"MED_DOSE:{drug}",
+            "value_num": val,
+            "unit": unit or None,
+            "meta": meta,
+        }
+PY

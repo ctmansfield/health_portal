@@ -1,0 +1,24 @@
+# Genomics data manifest - inventory of sources for integration
+# Fill in concrete paths and DSNs during discovery (see GEN-001)
+
+db_instances:
+  - name: genomics_pg
+    dsn: "postgresql://genomics:pass@localhost:5432/genomics_db"  # replace with actual
+    notes: "Database used by genomics-stack if present"
+
+report_dirs:
+  - path: "/mnt/nas_storage/genomics-stack/risk_reports/out"
+    pattern: "*.pdf"
+    notes: "Patient-level risk reports produced by pipeline"
+
+vep_cache:
+  - path: "/mnt/nas_storage/vep/cache"
+  - path: "/mnt/nas_storage/vep/reference"
+
+guard_scripts:
+  - path: "/mnt/nas_storage/genomics-stack/tools/vep_cache_bootstrap_guard.sh"
+
+sample_queries:
+  - name: sample_reports
+    sql: "-- sample query to list reports if indexed in DB\nSELECT * FROM genomics.reports LIMIT 10;"
+    notes: "If you index file reports into a table 'genomics.reports' this query will return them"

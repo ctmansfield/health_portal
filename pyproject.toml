@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hp_etl"
+version = "0.0.1"
+description = "Health Portal ETL utilities"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+[tool.setuptools.package-dir]
+"" = "app"
