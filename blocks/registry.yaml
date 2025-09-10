@@ -6,7 +6,8 @@ blocks:
   - id: DB-1
     title: Baseline schema & views (report, variant, biomarker; report_exec_summary)
     component: db
-    status: todo
+    status: done
+    closed_at: 2025-09-10T23:29:45.686573Z
     weight: 10
     deps: []
     context:
