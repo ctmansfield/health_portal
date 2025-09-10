@@ -6,7 +6,7 @@
 # - MINOR: additive fields/endpoints, optional columns
 # - MAJOR: breaking changes (field rename/removal, behavior change)
 
-db_schema_version: 1.0.0
+db_schema_version: 1.1.0
 api_version: 1.0.0
 payload_schema_version:
   report: 1.0.0   # maps to schemas/json/report.v1.json
@@ -38,3 +38,10 @@ artifact_locations:
   schemas_dir: "app/reporting_scaffold/schemas/json"
   openapi_file: "api/openapi.genomics_reports.v1.yaml"
   renderer_component: "app/reporting_scaffold/renderer.py"  # to be swapped with templating in v0.2
+
+# New DB exports in db_schema_version 1.1.0:
+# - analytics.report (table)
+# - analytics.variant (table)
+# - analytics.biomarker (table)
+# - analytics.report_exec_summary (view)
+# These additions are additive and non-breaking for consumers of existing views/tables.

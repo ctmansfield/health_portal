@@ -14,6 +14,7 @@ VIEWS = [
     "analytics.mv_hr_hourly",
     "analytics.mv_spo2_daily_pct",
     "analytics.mv_hr_daily_zscore",
+    "analytics.mv_genomics_summary",
 ]
 
 

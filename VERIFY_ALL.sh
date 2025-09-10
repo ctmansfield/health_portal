@@ -33,3 +33,9 @@ PY
 fi
 
 echo "[verify] done"
+
+# Run DB migration verification script for report baseline if HP_DSN is provided
+if [ -n "${HP_DSN:-}" ]; then
+  echo "[verify] Running DB migration verification for report baseline"
+  services/healthdb-pg-0001/migrations/verify_report_baseline.sh
+fi

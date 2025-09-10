@@ -1,0 +1,12 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "blocks/done/**": true,
+    "node_modules/**": true,
+    "**/__pycache__/**": true
+  },
+  "workbench.editor.enablePreview": false
+}
