@@ -1,22 +1,18 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Health Portal Dashboard</title>
-  <link rel="stylesheet" href="/static/style.css">
+{% extends "base.html" %}
+{% block title %}Dashboard — Health Portal{% endblock %}
+{% block head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <div class="header"><h1>Health Portal</h1></div>
-  <div class="container">
+{% endblock %}
+{% block content %}
+  <main class="container">
     <div class="controls">
-      <form method="get" style="display:flex;gap:8px;align-items:center">
+      <form method="get" class="form-inline">
         <label>Person: <input type="text" name="person_id" value="{{ person_id }}"></label>
         <label>Days: <input type="number" name="days" value="{{ days }}" min="1" max="365"></label>
-        <button type="submit">Refresh</button>
+        <button type="submit" class="btn">Refresh</button>
       </form>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <a href="/logout" style="color:var(--accent);text-decoration:none;font-weight:600">Logout</a>
+        <a href="/logout" class="header-link">Logout</a>
       </div>
     </div>
 
@@ -32,29 +28,29 @@
           <div><strong>Person</strong><div>{{ person_id }}</div></div>
           <div><strong>Window</strong><div>Last {{ days }} days</div></div>
         </div>
-        <div style="margin-top:12px">
+        <div class="mt-12">
           <a href="/dashboard?person_id={{ person_id }}&days={{ days }}">Refresh</a>
         </div>
-        <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+        <div class="flex-row mt-12">
           <div style="flex:1">
-            <div style="font-size:14px;color:var(--muted)">Latest HR</div>
-            <div style="font-size:20px;font-weight:700">{{ hr_values[-1] if hr_values|length else '—' }}</div>
+            <div class="text-small">Latest HR</div>
+            <div class="value-large">{{ hr_values[-1] if hr_values|length else '—' }}</div>
             <canvas id="hrSpark" width="200" height="40"></canvas>
           </div>
           <div style="flex:1">
-            <div style="font-size:14px;color:var(--muted)">Min SpO2 (recent)</div>
-            <div style="font-size:20px;font-weight:700">{{ (spo2_values|last)|round(2) if spo2_values|length else '—' }}</div>
+            <div class="text-small">Min SpO2 (recent)</div>
+            <div class="value-large">{{ (spo2_values|last)|round(2) if spo2_values|length else '—' }}</div>
             <canvas id="spo2Spark" width="200" height="40"></canvas>
           </div>
         </div>
-        <div style="margin-top:16px">
-          <h3 style="margin-bottom:8px">SpO2 (Daily Min)</h3>
+        <div class="mt-16">
+          <h3 class="mb-8">SpO2 (Daily Min)</h3>
           <canvas id="spo2Chart" width="400" height="150"></canvas>
         </div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:18px">
+    <div class="card mt-18">
       <h2>Recent AI Findings</h2>
       <div class="table">
       <table>
@@ -78,7 +74,7 @@
     </div>
 
     <div class="footer">Data from analytics views. Last updated: server time.</div>
-  </div>
+  </main>
 
 <script>
 const hrLabels = {{ labels | tojson }};
@@ -105,5 +101,4 @@ new Chart(hrSparkCtx, {type:'line', data:{labels: hrLabels, datasets:[{data: hrD
 const spo2SparkCtx = document.getElementById('spo2Spark').getContext('2d');
 new Chart(spo2SparkCtx, {type:'line', data:{labels: hrLabels, datasets:[{data: spo2Data, borderColor:'rgb(14,165,233)', tension:0.2}]}, options:{plugins:{legend:{display:false}},elements:{point:{radius:0}},scales:{x:{display:false},y:{display:false}}}});
 </script>
-</body>
-</html>
+{% endblock %}

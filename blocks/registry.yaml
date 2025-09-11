@@ -49,3 +49,10 @@ blocks:
         - "OpenAPI v1 updated"
         - "200 returns summary object"
         - "400/404 for invalid/missing id"
+- id: UI-1
+  title: UI-1
+    assignee: Chad
+  component: app
+  status: active
+  deps: []
+  context: {docs: [], touches: [], acceptance: []}
