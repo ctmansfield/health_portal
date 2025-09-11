@@ -11,6 +11,11 @@ import os
 
 router = APIRouter()
 templates = Jinja2Templates(directory="srv/api/templates")
+# allow loading component partials from app/templates as well (component lives in app/templates/components)
+try:
+    templates.env.loader.searchpath.append("app/templates")
+except Exception:
+    pass
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -116,3 +121,47 @@ async def dashboard(
     }
     cache_set(cache_key, ctx, ttl=30)
     return templates.TemplateResponse("dashboard.html", {**ctx, "request": request})
+
+
+# UI routes for previewing the report summary card component
+from fastapi.responses import HTMLResponse, Response
+from pathlib import Path
+
+
+def _no_store_headers(resp: Response) -> Response:
+    resp.headers["Cache-Control"] = "no-store"
+    resp.headers["X-Frame-Options"] = "DENY"
+    return resp
+
+
+@router.get("/ui/components/report-summary-card", response_class=HTMLResponse)
+async def ui_component_report_summary_card(request: Request, id: str | None = None):
+    """Return the component partial standalone. Optional query param ?id=<uuid>"""
+    tpl = templates.get_template("components/report_summary_card.html")
+    html = tpl.render(request=request, report_id=(id or ""))
+    resp = HTMLResponse(content=html, status_code=200)
+    return _no_store_headers(resp)
+
+
+@router.get("/ui/reports/{id}/summary-card", response_class=HTMLResponse)
+async def ui_report_summary_card(request: Request, id: str):
+    """Return a full page that includes the component for a given report id."""
+    tpl = templates.get_template("components/report_summary_card.html")
+    html = tpl.render(request=request, report_id=id)
+    resp = HTMLResponse(content=html, status_code=200)
+    return _no_store_headers(resp)
+
+
+@router.get("/ui/demo/report-summary", response_class=HTMLResponse)
+async def ui_demo_report_summary(request: Request):
+    """Small demo wrapper page that embeds the report summary card component into a simple dashboard-like container."""
+    partial_tpl = templates.get_template("components/report_summary_card.html")
+    partial_html = partial_tpl.render(request=request, report_id="00000000-0000-0000-0000-000000000000")
+    return _no_store_headers(templates.TemplateResponse("demo_report_summary.html", {"request": request, "partial": partial_html}))
+
+
+@router.get("/ui", response_class=HTMLResponse)
+async def ui_index(request: Request):
+    """Small index listing useful UI pages for quick review."""
+    sample_id = "00000000-0000-0000-0000-000000000000"
+    return templates.TemplateResponse("ui_index.html", {"request": request, "sample_id": sample_id})

@@ -1,17 +1,10 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Logged out</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="header"><h1>Health Portal</h1></div>
-  <div class="container">
-    <div class="card" style="max-width:480px;margin:36px auto;padding:24px;text-align:center">
+{% extends "base.html" %}
+{% block title %}Signed out — Health Portal{% endblock %}
+{% block content %}
+  <main class="container">
+    <div class="card card--narrow text-center">
       <h2>Signed out</h2>
       <p>You have been signed out. <a href="/login">Sign in again</a></p>
     </div>
-  </div>
-</body>
-</html>
+  </main>
+{% endblock %}

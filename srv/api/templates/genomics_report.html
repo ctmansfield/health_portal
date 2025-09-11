@@ -1,19 +1,12 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Genomics Report {{ report.report_id }}</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="header"><h1>Genomics Report</h1></div>
-  <div class="container">
+{% extends "base.html" %}
+{% block title %}Genomics Report — {{ report.report_id }}{% endblock %}
+{% block content %}
+  <main class="container">
     <div class="card">
       <h2>{{ report.filename }}</h2>
       <p>Person: {{ report.person_id }}</p>
-      <p>Generated: {{ report.generated_at }}</p>
+      <p>Generated: {{ report.created_at or report.generated_at }}</p>
       <p><a href="/genomics/reports/{{ report.report_id }}/download">Open report</a></p>
     </div>
-  </div>
-</body>
-</html>
+  </main>
+{% endblock %}

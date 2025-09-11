@@ -1,0 +1,22 @@
+<div class="hp-report-summary-card" data-report-id="{{ report_id|default('') }}">
+  <div class="hp-card-body" role="status" aria-live="polite">
+    <!-- JS will inject content here -->
+  </div>
+</div>
+<script src="/static/js/report_summary_card.js" defer></script>
+<style>
+.hp-report-summary-card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;max-width:420px;background:#fff;color:#0f172a}
+.hp-row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+.hp-title{font-size:1rem;margin:0;font-weight:600;color:#0b2545}
+.hp-badge{padding:4px 10px;border-radius:9999px;font-size:.8rem;font-weight:600}
+.hp-badge.badge--positive{background:#e6ffed;color:#065f46}
+.hp-badge.badge--negative{background:#ffecec;color:#881337}
+.hp-badge.badge--inconclusive{background:#fff7e6;color:#92400e}
+.hp-skel{animation:hp-s 1.1s linear infinite;background:linear-gradient(90deg,#f3f4f6,#e5e7eb,#f3f4f6);background-size:200% 100%;height:16px;margin:6px 0;border-radius:6px}
+.hp-skel.short{width:70%}
+.hp-cta a{color:#0b61ff;text-decoration:none}
+.hp-empty{color:#475569;font-size:.95rem}
+.hp-alert{background:#fee2e2;color:#831843;padding:8px;border-radius:8px}
+.hp-alert button{margin-left:8px}
+@keyframes hp-s{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>

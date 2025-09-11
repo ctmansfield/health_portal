@@ -1,22 +1,15 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Login — Health Portal</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="header"><h1>Health Portal</h1></div>
-  <div class="container">
-    <div class="card" style="max-width:480px;margin:36px auto;padding:24px">
+{% extends "base.html" %}
+{% block title %}Sign in — Health Portal{% endblock %}
+{% block content %}
+  <main class="container">
+    <div class="card card--narrow">
       <h2>Sign in</h2>
-      <form method="post" action="/login" style="display:flex;flex-direction:column;gap:12px">
-        <input type="password" name="api_key" placeholder="API Key" style="padding:10px;border-radius:8px;border:1px solid #e6eef8">
-        <button type="submit" style="background:var(--accent);color:white;padding:10px;border-radius:8px;border:none">Sign in</button>
+      <form method="post" action="/login" class="stack">
+        <input type="password" name="api_key" placeholder="API Key" class="form-control">
+        <button type="submit" class="btn">Sign in</button>
       </form>
-      {% if error %}<p style="color:red;margin-top:12px">{{ error }}</p>{% endif %}
+      {% if error %}<p class="error-text">{{ error }}</p>{% endif %}
     </div>
-    <div style="text-align:center;color:var(--muted)">Need an API Key? Contact administrator.</div>
-  </div>
-</body>
-</html>
+    <div class="muted text-center">Need an API Key? Contact administrator.</div>
+  </main>
+{% endblock %}
