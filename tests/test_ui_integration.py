@@ -140,7 +140,7 @@ def test_dashboard_render(monkeypatch):
     assert r.status_code == 200 and "Sign in" in r.text
 
     # post login and follow redirect
-    r = client.post("/login", data={"api_key": "testkey"}, allow_redirects=True)
+    r = client.post("/login", data={"api_key": "testkey"}, follow_redirects=True)
     assert r.status_code == 200
     # load dashboard
     r = client.get("/dashboard")

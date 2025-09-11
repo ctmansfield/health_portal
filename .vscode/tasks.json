@@ -40,7 +40,7 @@
     {
       "label": "Blocks: Assign",
       "type": "shell",
-      "command": "ID=${input:blockId} ASSIGNEE=\"${input:assignee}\" bash scripts/block/assign_block.sh ${input:blockId} \"${input:assignee}\""
+      "command": "bash scripts/block/assign_block.sh ${input:blockId} \"${input:assignee}\""
     },
     {
       "label": "Blocks: Open (scaffold + open in VS)",
