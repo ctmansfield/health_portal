@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: Genomics Reports API (v1)
+  version: 1.0.0
+paths:
+  /reports/{id}:
+    get:
+      summary: Get canonical clinician report by UUID
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Canonical report payload (JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid id format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /reports/{id}/summary:
+    get:
+      operationId: getReportSummary
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Summary for dashboard card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+        '400':
+          description: Invalid id
+        '404':
+          description: Not found
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+    ReportSummary:
+      type: object
+      required:
+      - id
+      - title
+      - result
+      - signed_out_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        result:
+          type: string
+        signed_out_at:
+          type: string
+          format: date-time

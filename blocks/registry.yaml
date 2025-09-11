@@ -1,205 +1,49 @@
-# Coding Blocks Registry (v0.1.9)
-# id: human-readable title; status: todo|active|done; weight: priority (lower = sooner)
-# deps: list of IDs that must be done first; component: db|app|ui|ops
-
 blocks:
   - id: DB-1
     title: Baseline schema & views (report, variant, biomarker; report_exec_summary)
     component: db
     status: done
-    closed_at: 2025-09-10T23:29:45.686573Z
     weight: 10
     deps: []
+    assignee: Chad
     context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-        - docs/reporting_scaffold/Parallel_Workstreams_and_Interface_Contracts.md
-        - docs/reporting_scaffold/System_Architecture_and_Design.md
+      docs: []
       touches:
-        - services/healthdb-pg-0001/migrations/
-        - app/reporting_scaffold/schemas/json/*
+        - services/healthdb-pg-0001/migrations/**
       acceptance:
-        - Migrations apply/rollback cleanly in staging
-        - View `report_exec_summary` returns expected columns
+        - "Migrations apply & rollback cleanly"
+        - "View report_exec_summary returns id,title,result,signed_out_at"
 
   - id: APP-2
     title: GET /reports/{id} — full clinician payload
     component: app
-    status: todo
+    status: done
     weight: 20
     deps: [DB-1]
+    assignee: Chad
     context:
-      docs:
-        - api/openapi.genomics_reports.v1.yaml
+      docs: []
       touches:
-        - srv/ or app/ (API handlers)
+        - app/**
+        - api/**
       acceptance:
-        - OpenAPI contract tests pass
-        - Example payload returns; renderer dev route can display
+        - "OpenAPI v1 updated"
+        - "200 returns canonical payload"
+        - "400/404 for invalid/missing id"
 
   - id: APP-3
     title: GET /reports/{id}/summary — dashboard card
     component: app
-    status: todo
+    status: done
     weight: 30
     deps: [DB-1]
-    context:
-      docs:
-        - api/openapi.genomics_reports.v1.yaml
-      touches:
-        - srv/ or app/
-      acceptance:
-        - Returns banner, key findings, biomarkers, trials count
-        - Cache by report id + version (optional)
-
-  - id: UI-1
-    title: Dashboard Summary Card
-    component: ui
-    status: todo
-    weight: 40
-    deps: [APP-3]
-    context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-      touches:
-        - app/dashboard/ (or your frontend dir)
-      acceptance:
-        - Loading/error states
-        - Snapshot or screenshot reference
-
-  - id: APP-5
-    title: Sign-out flow & payload hashing
-    component: app
-    status: todo
-    weight: 50
-    deps: [DB-1]
-    context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-      touches:
-        - srv/ or app/
-        - services/healthdb-pg-0001/
-      acceptance:
-        - SHA-256 stored; report locked; reissue increments version
-
-  - id: APP-1
-    title: Ingest + jsonschema validation
-    component: app
-    status: todo
-    weight: 60
-    deps: [DB-1]
-    context:
-      docs:
-        - docs/reporting_scaffold/System_Architecture_and_Design.md
-      touches:
-        - app/reporting_scaffold/schemas/json/*
-        - srv/ or app/
-      acceptance:
-        - Invalid fixtures rejected; valid accepted
-
-  - id: UI-2
-    title: Full clinician report view
-    component: ui
-    status: todo
-    weight: 70
-    deps: [APP-2]
-    context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-      touches:
-        - app/dashboard/
-      acceptance:
-        - Sectioned layout; print-friendly; WCAG basic checks
-
-  - id: APP-4
-    title: Patient-mode endpoint
-    component: app
-    status: todo
-    weight: 80
-    deps: [APP-2]
-    context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-      touches:
-        - srv/ or app/
-      acceptance:
-        - Patient HTML/JSON renders; glossary links present
-
-  - id: DB-2
-    title: History & reissue policy tables
-    component: db
-    status: todo
-    weight: 90
-    deps: [DB-1]
-    context:
-      docs:
-        - docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
-      touches:
-        - services/healthdb-pg-0001/migrations/
-      acceptance:
-        - Prior payload hash preserved; referential integrity intact
-
-  - id: APP-7
-    title: Renderer snapshot tests (clinician & patient)
-    component: app
-    status: todo
-    weight: 100
-    deps: [APP-2, APP-4]
+    assignee: Chad
     context:
       docs: []
       touches:
-        - tests/renderer/
+        - app/**
+        - api/**
       acceptance:
-        - Golden files stored; CI/local gate (optional)
-
-  - id: DB-3
-    title: Indexing strategy (geneSymbol; signOut.date)
-    component: db
-    status: todo
-    weight: 110
-    deps: [DB-1]
-    context:
-      docs: []
-      touches:
-        - services/healthdb-pg-0001/migrations/
-      acceptance:
-        - p95 query improvements demonstrated
-
-  - id: APP-6
-    title: FHIR/VRS exporters (stubs)
-    component: app
-    status: todo
-    weight: 120
-    deps: [APP-2]
-    context:
-      docs: []
-      touches:
-        - app/exporters/
-      acceptance:
-        - Sample bundle validates; feature-flagged
-
-  - id: UI-3
-    title: Patient-mode view & PDF
-    component: ui
-    status: todo
-    weight: 130
-    deps: [APP-4]
-    context:
-      docs: []
-      touches:
-        - app/dashboard/
-      acceptance:
-        - Readability score; print snapshot; disclaimer present
-
-  - id: OPS-1
-    title: VERIFY_ALL end-to-end checks (local)
-    component: ops
-    status: todo
-    weight: 140
-    deps: []
-    context:
-      docs: []
-      touches:
-        - VERIFY_ALL.sh
-      acceptance:
-        - One command runs schema + OpenAPI + sample render
+        - "OpenAPI v1 updated"
+        - "200 returns summary object"
+        - "400/404 for invalid/missing id"

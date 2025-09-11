@@ -6,14 +6,12 @@ if [ -z "$ID" ] || [ -z "$ASSIGNEE" ]; then
 fi
 PYBIN="$(command -v python3 || command -v python || true)"
 if [ -z "$PYBIN" ]; then echo "[error] python not found"; exit 2; fi
-export ID ASSIGNEE
-"$PYBIN" - <<'PY'
-import os, sys, yaml
-ID=os.environ['ID']; ASSIGNEE=os.environ['ASSIGNEE']
+"$PYBIN" - "$ID" "$ASSIGNEE" <<'PY'
+import sys, yaml
+ID=sys.argv[1]; ASSIGNEE=sys.argv[2]
 with open("blocks/registry.yaml","r",encoding="utf-8") as f:
     data = yaml.safe_load(f) or {}
-blocks = data.get('blocks') or []
-for b in blocks:
+for b in data.get('blocks', []):
     if b.get('id') == ID:
         b['assignee'] = ASSIGNEE
         break
@@ -23,4 +21,3 @@ with open("blocks/registry.yaml","w",encoding="utf-8") as f:
     yaml.safe_dump(data, f, sort_keys=False)
 print("[assign] set assignee", ASSIGNEE, "for", ID)
 PY
-echo "[hint] (optional) open the block: scripts/block/open_block.sh $ID \"$ASSIGNEE\""

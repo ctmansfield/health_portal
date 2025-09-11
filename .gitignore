@@ -29,3 +29,9 @@ incoming/                 # local drop folder (if present inside repo)
 .DS_Store
 Thumbs.db
 context/arch/*.md
+**/__pycache__/
+*.pyc
+*.pyo
+*.bak
+*.bak.*
+*.patch
