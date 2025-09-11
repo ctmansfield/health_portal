@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 import app.hp_etl.db as db
-from app.hp_etl.simple_cache import get as cache_get, set as cache_set
+from app.hp_etl.cache import get as cache_get, set as cache_set
 from .auth import require_api_key
 import datetime as dt
 from urllib.parse import parse_qs
@@ -75,7 +75,9 @@ async def dashboard(
     days: int = 14,
     auth=Depends(require_api_key),
 ):
-    since = (dt.datetime.utcnow() - dt.timedelta(days=days)).date().isoformat()
+    since = (
+        (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).date().isoformat()
+    )
     # cache key
     cache_key = f"dashboard:{person_id}:{days}"
     cached = cache_get(cache_key)
@@ -156,12 +158,75 @@ async def ui_report_summary_card(request: Request, id: str):
 async def ui_demo_report_summary(request: Request):
     """Small demo wrapper page that embeds the report summary card component into a simple dashboard-like container."""
     partial_tpl = templates.get_template("components/report_summary_card.html")
-    partial_html = partial_tpl.render(request=request, report_id="00000000-0000-0000-0000-000000000000")
-    return _no_store_headers(templates.TemplateResponse("demo_report_summary.html", {"request": request, "partial": partial_html}))
+    partial_html = partial_tpl.render(
+        request=request, report_id="00000000-0000-0000-0000-000000000000"
+    )
+    return _no_store_headers(
+        templates.TemplateResponse(
+            "demo_report_summary.html", {"request": request, "partial": partial_html}
+        )
+    )
 
 
 @router.get("/ui", response_class=HTMLResponse)
 async def ui_index(request: Request):
     """Small index listing useful UI pages for quick review."""
     sample_id = "00000000-0000-0000-0000-000000000000"
-    return templates.TemplateResponse("ui_index.html", {"request": request, "sample_id": sample_id})
+    return templates.TemplateResponse(
+        "ui_index.html", {"request": request, "sample_id": sample_id}
+    )
+
+
+@router.get("/ui/people/{id}/labs/critical", response_class=HTMLResponse)
+async def ui_people_labs_critical(request: Request, id: str):
+    """Render the labs critical graphs page for a person (client-side will fetch series via APP-9).
+    The page can request preview data from /ui/preview/labs/{person_id} when preview mode is active.
+    """
+    tpl = templates.get_template("components/labs_critical_page.html")
+    html = tpl.render(request=request, person_id=id)
+    resp = HTMLResponse(content=html, status_code=200)
+    return _no_store_headers(resp)
+
+
+@router.get("/ui/preview/labs/{person_id}")
+async def ui_preview_labs(request: Request, person_id: str):
+    """Return a small sample preview dataset for the labs page (used by designers).
+    Response is no-store and safe for embedding in the UI.
+    """
+    sample = [
+        {
+            "metric": "hr",
+            "unit": "bpm",
+            "tz": "UTC",
+            "series": [
+                {
+                    "t_utc": "2025-09-01T00:00:00Z",
+                    "t_local": "2025-08-31T17:00:00-07:00",
+                    "v": 60,
+                },
+                {
+                    "t_utc": "2025-09-02T00:00:00Z",
+                    "t_local": "2025-09-01T17:00:00-07:00",
+                    "v": 62,
+                },
+            ],
+        },
+        {
+            "metric": "spo2",
+            "unit": "%",
+            "tz": "UTC",
+            "series": [
+                {
+                    "t_utc": "2025-09-01T00:00:00Z",
+                    "t_local": "2025-08-31T17:00:00-07:00",
+                    "v": 98,
+                },
+                {
+                    "t_utc": "2025-09-02T00:00:00Z",
+                    "t_local": "2025-09-01T17:00:00-07:00",
+                    "v": 97,
+                },
+            ],
+        },
+    ]
+    return _no_store_headers(JSONResponse(content=sample))

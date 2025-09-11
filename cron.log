@@ -9,3 +9,21 @@ Views applied/refreshed.
 ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0
 2025-09-10T02:08:02-04:00 nightly done
 ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0
+NOTICE:  relation "mv_daily_vitals" already exists, skipping
+CREATE MATERIALIZED VIEW
+CREATE INDEX
+NOTICE:  relation "idx_mv_daily_vitals_day" already exists, skipping
+CREATE INDEX
+NOTICE:  relation "uq_mv_daily_vitals" already exists, skipping
+REFRESH MATERIALIZED VIEW
+Views applied/refreshed.
+ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0
+2025-09-11T02:08:02-04:00 nightly done
+ai_last_day -> 2025-09-10T00:00:00Z | inserts: 0
+('analytics.mv_daily_vitals', True, 'concurrent')
+('analytics.mv_vitals_daily_wide', True, 'concurrent')
+('analytics.mv_events_daily', True, 'concurrent')
+('analytics.mv_hr_hourly', True, 'non-concurrent')
+('analytics.mv_spo2_daily_pct', True, 'non-concurrent')
+('analytics.mv_hr_daily_zscore', True, 'non-concurrent')
+python: can't open file '/mnt/nas_storage/repos/health_portal/jobs/cleanup_sessions.py': [Errno 2] No such file or directory
