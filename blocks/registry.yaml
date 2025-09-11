@@ -36,6 +36,7 @@ blocks:
     title: GET /reports/{id}/summary — dashboard card
     component: app
     status: done
+    closed_at: 2025-09-11T02:13:07.536822Z
     weight: 30
     deps: [DB-1]
     assignee: Chad
