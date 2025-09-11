@@ -18,6 +18,7 @@ blocks:
     title: GET /reports/{id} — full clinician payload
     component: app
     status: done
+    closed_at: 2025-09-11T02:13:06.603122Z
     weight: 20
     deps: [DB-1]
     assignee: Chad
