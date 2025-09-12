@@ -1,8 +1,8 @@
-# UI-6: UI-6
+# APP-2: APP-2
 
 | Key | Value |
 |---|---|
-| **ID** | `UI-6` |
+| **ID** | `APP-2` |
 | **Component** | `n/a` |
 | **Status** | `done` |
 | **Weight** | 0 |
@@ -10,12 +10,12 @@
 | **Dependencies** | — |
 
 ## Purpose & Scope
-Dashboard layout, responsive charts, no overlap with summary pane.
+Expose clinician payload endpoint.
 
 
 ## Interfaces & Contracts
-- - CSS grid responsive layout in `srv/api/templates/dashboard.html` + `srv/api/static/style.css`
-- - Chart sizing via `srv/api/static/js/dashboard_charts.js`
+- - **GET /reports/{id}** → returns canonical JSON stored in `analytics.report.payload`.
+- - OpenAPI: `api/openapi.genomics_reports.v1.yaml`
 
 
 ## Acceptance Criteria
@@ -33,11 +33,11 @@ Dashboard layout, responsive charts, no overlap with summary pane.
 
 
 ## Run & Verify (local)
-- pytest -q tests/test_ui_dashboard_layout.py
+- pytest -q tests/test_app_reports.py::test_get_report_payload
 
 
 ## Suggested Branch & PR
-- Branch: `ui-6/feature`
+- Branch: `app-2/feature`
 - Create a small PR; include test results and screenshots for UI.
 
 
