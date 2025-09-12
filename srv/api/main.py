@@ -7,6 +7,8 @@ from .v1 import __init__ as v1pkg
 from .reports import router as reports_router
 
 app = FastAPI()
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="srv/api/static"), name="static")
 
 # Mount static
 app.mount(

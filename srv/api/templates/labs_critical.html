@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Labs — Critical Series{% endblock %}
-
 {% block head_extra %}
   <script defer src="{{ url_for('static', path='js/chart.umd.min.js') }}"></script>
   <script defer src="{{ url_for('static', path='js/labs_critical_v2.js') }}"></script>
 {% endblock %}
-
 {% block content %}
   <p><a href="{{ url_for('dashboard') }}">← Back to dashboard</a></p>
   <h1>Labs — Critical Series</h1>
-
   <div class="hp-labs-critical" data-person-id="{{ person_id | default('me') }}" data-agg-default="daily">
     <div class="hp-labs-toolbar"></div>
     <div class="hp-labs-body"></div>

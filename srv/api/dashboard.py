@@ -63,7 +63,7 @@ async def login_post(request: Request):
 
 @router.get("/logout")
 def logout(request: Request):
-    resp = templates.TemplateResponse("logged_out.html", {"request": request})
+    resp = templates.TemplateResponse("labs_critical.html", {"request": request})
     resp.delete_cookie("hp_api_key", path="/")
     return resp
 
@@ -122,7 +122,7 @@ async def dashboard(
         "findings": findings_list,
     }
     cache_set(cache_key, ctx, ttl=30)
-    return templates.TemplateResponse("dashboard.html", {**ctx, "request": request})
+    return templates.TemplateResponse("labs_critical.html", {**ctx, "request": request})
 
 
 # UI routes for previewing the report summary card component
