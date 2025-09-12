@@ -3,6 +3,7 @@
 {% block head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
+{% block extra_head %}{% endblock %}
 {% block content %}
   <main class="container">
     <div class="controls">
@@ -16,20 +17,22 @@
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
+    <div class="dashboard-main">
+      <section class="panel chart-panel">
         <h2>Median HR (Daily)</h2>
-        <canvas id="hrChart" width="800" height="200"></canvas>
-      </div>
+        <div class="chart-wrap" data-chart="hrDaily">
+          <canvas id="hrDaily"></canvas>
+        </div>
+      </section>
 
-      <div class="card">
+      <aside class="panel summary-card">
         <h2>Summary</h2>
         <div class="kv">
           <div><strong>Person</strong><div>{{ person_id }}</div></div>
           <div><strong>Window</strong><div>Last {{ days }} days</div></div>
         </div>
         <div class="mt-12">
-          <a href="/dashboard?person_id={{ person_id }}&days={{ days }}">Refresh</a>
+          <a href="/dashboard?person_id={{ person_id }}&days={{ days }}">Refresh</a> · <a href="/ui/people/{{ person_id }}/labs/critical?preview=1">View Labs Charts</a>
         </div>
         <div class="flex-row mt-12">
           <div style="flex:1">
@@ -47,7 +50,7 @@
           <h3 class="mb-8">SpO2 (Daily Min)</h3>
           <canvas id="spo2Chart" width="400" height="150"></canvas>
         </div>
-      </div>
+      </aside>
     </div>
 
     <div class="card mt-18">
@@ -77,28 +80,10 @@
   </main>
 
 <script>
-const hrLabels = {{ labels | tojson }};
-const hrData = {{ hr_values | tojson }};
-const spo2Data = {{ spo2_values | tojson }};
-
-const hrCtx = document.getElementById('hrChart').getContext('2d');
-new Chart(hrCtx, {
-  type: 'line',
-  data: { labels: hrLabels, datasets: [{ label: 'Median HR', data: hrData, borderColor: 'rgb(37,99,235)', backgroundColor: 'rgba(37,99,235,0.08)', tension: 0.2 }] },
-  options: { scales: { y: { beginAtZero: false } }, plugins: { legend: { display: false } } }
-});
-
-const spo2Ctx = document.getElementById('spo2Chart').getContext('2d');
-new Chart(spo2Ctx, {
-  type: 'line',
-  data: { labels: hrLabels, datasets: [{ label: 'Min SpO2', data: spo2Data, borderColor: 'rgb(14,165,233)', backgroundColor: 'rgba(14,165,233,0.06)', tension: 0.2 }] },
-  options: { scales: { y: { beginAtZero: true, suggestedMax: 1.0 } }, plugins: { legend: { display: false } } }
-});
-
-// Sparklines
-const hrSparkCtx = document.getElementById('hrSpark').getContext('2d');
-new Chart(hrSparkCtx, {type:'line', data:{labels: hrLabels, datasets:[{data: hrData, borderColor:'rgb(37,99,235)', tension:0.2}]}, options:{plugins:{legend:{display:false}},elements:{point:{radius:0}},scales:{x:{display:false},y:{display:false}}}});
-const spo2SparkCtx = document.getElementById('spo2Spark').getContext('2d');
-new Chart(spo2SparkCtx, {type:'line', data:{labels: hrLabels, datasets:[{data: spo2Data, borderColor:'rgb(14,165,233)', tension:0.2}]}, options:{plugins:{legend:{display:false}},elements:{point:{radius:0}},scales:{x:{display:false},y:{display:false}}}});
+window.hrLabels = {{ labels | tojson }};
+window.hrData = {{ hr_values | tojson }};
+window.spo2Data = {{ spo2_values | tojson }};
 </script>
+<script src="/static/js/dashboard_charts.js" defer></script>
+
 {% endblock %}

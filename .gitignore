@@ -35,3 +35,4 @@ context/arch/*.md
 *.bak
 *.bak.*
 *.patch
+cron.log

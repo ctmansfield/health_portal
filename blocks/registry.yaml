@@ -1,58 +1,10 @@
 blocks:
-  - id: DB-1
-    title: Baseline schema & views (report, variant, biomarker; report_exec_summary)
-    component: db
-    status: done
-    weight: 10
-    deps: []
-    assignee: Chad
-    context:
-      docs: []
-      touches:
-        - services/healthdb-pg-0001/migrations/**
-      acceptance:
-        - "Migrations apply & rollback cleanly"
-        - "View report_exec_summary returns id,title,result,signed_out_at"
-
-  - id: APP-2
-    title: GET /reports/{id} — full clinician payload
-    component: app
-    status: done
-    closed_at: 2025-09-11T02:13:06.603122Z
-    weight: 20
-    deps: [DB-1]
-    assignee: Chad
-    context:
-      docs: []
-      touches:
-        - app/**
-        - api/**
-      acceptance:
-        - "OpenAPI v1 updated"
-        - "200 returns canonical payload"
-        - "400/404 for invalid/missing id"
-
-  - id: APP-3
-    title: GET /reports/{id}/summary — dashboard card
-    component: app
-    status: done
-    closed_at: 2025-09-11T02:13:07.536822Z
-    weight: 30
-    deps: [DB-1]
-    assignee: Chad
-    context:
-      docs: []
-      touches:
-        - app/**
-        - api/**
-      acceptance:
-        - "OpenAPI v1 updated"
-        - "200 returns summary object"
-        - "400/404 for invalid/missing id"
-- id: UI-1
-  title: UI-1
-    assignee: Chad
-  component: app
-  status: active
-  deps: []
-  context: {docs: [], touches: [], acceptance: []}
+  - {id: DB-1,  title: "Baseline schema & views", component: db, status: done,  weight: 10, deps: []}
+  - {id: APP-2, title: "GET /reports/{id}",       component: app,status: done,  weight: 20, deps: [DB-1]}
+  - {id: APP-3, title: "GET /reports/{id}/summary", component: app,status: done, weight: 30, deps: [DB-1]}
+  - {id: APP-9, title: "Critical series endpoint", component: app,status: done, weight: 90, deps: [DB-1]}
+  - {id: UI-5,  title: "Critical Lab Graphs page", component: ui, status: done, weight:130, deps: [APP-9]}
+  - {id: UI-6,  title: "Labs interactions (zoom/pan + agg toggle)", component: ui, status: active, weight:135, deps:[UI-5]}
+  - {id: APP-10,title: "Ref ranges & flagging", component: app, status: active, weight:136, deps:[APP-9]}
+  - {id: UI-7,  title: "Ref bands + legend + Export", component: ui, status: active, weight:137, deps:[UI-5,APP-10]}
+  - {id: APP-11,title: "Downsampling & cache-key", component: app, status: active, weight:138, deps:[APP-9]}
