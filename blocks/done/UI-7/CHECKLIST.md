@@ -1,4 +1,4 @@
-# UI-6 — Checklist
+# UI-7 — Checklist
 - [ ] Define acceptance
 - [ ] Add unit/integration tests
 - [ ] Update docs & screenshots (UI)

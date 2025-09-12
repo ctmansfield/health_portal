@@ -1,8 +1,8 @@
-# UI-6: UI-6
+# DB-1: DB-1
 
 | Key | Value |
 |---|---|
-| **ID** | `UI-6` |
+| **ID** | `DB-1` |
 | **Component** | `n/a` |
 | **Status** | `done` |
 | **Weight** | 0 |
@@ -10,12 +10,12 @@
 | **Dependencies** | — |
 
 ## Purpose & Scope
-Dashboard layout, responsive charts, no overlap with summary pane.
+Create baseline analytics schema and views for reports (report, variant, biomarker) and `report_exec_summary`.
 
 
 ## Interfaces & Contracts
-- - CSS grid responsive layout in `srv/api/templates/dashboard.html` + `srv/api/static/style.css`
-- - Chart sizing via `srv/api/static/js/dashboard_charts.js`
+- - View: `analytics.report_exec_summary(id,title,result,signed_out_at)`
+- - Tables: `analytics.report`, `analytics.variant`, `analytics.biomarker`
 
 
 ## Acceptance Criteria
@@ -33,11 +33,12 @@ Dashboard layout, responsive charts, no overlap with summary pane.
 
 
 ## Run & Verify (local)
-- pytest -q tests/test_ui_dashboard_layout.py
+- psql -c "SELECT * FROM analytics.report_exec_summary LIMIT 5;"
+- services/healthdb-pg-0001/migrations/verify_report_baseline.sh
 
 
 ## Suggested Branch & PR
-- Branch: `ui-6/feature`
+- Branch: `db-1/feature`
 - Create a small PR; include test results and screenshots for UI.
 
 
