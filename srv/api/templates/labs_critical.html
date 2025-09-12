@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Labs — Critical Series{% endblock %}
 
-{# put scripts in a head block, if base.html supports it #}
 {% block head_extra %}
   <script defer src="{{ url_for('static', path='js/chart.umd.min.js') }}"></script>
   <script defer src="{{ url_for('static', path='js/labs_critical_v2.js') }}"></script>
@@ -16,7 +15,7 @@
     <div class="hp-labs-body"></div>
   </div>
 
-  {# fallback loader in case base.html doesn't render head_extra #}
+  <!-- Fallback loader if base.html doesn’t render head_extra -->
   <script>
   (function(){
     if (!window.Chart) {
