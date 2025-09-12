@@ -1,4 +1,4 @@
-# UI-1 Checklist
+# DB-2 Checklist
 
 - [ ] Code implements scope without breaking existing endpoints
 - [ ] New/updated tests added and passing (`pytest -q`)

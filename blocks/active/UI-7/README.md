@@ -1,8 +1,8 @@
 # UI-7 — Reference Bands + Legend + Export-all CSV
 
-**Component:** ui  
-**Status:** active  
-**Assignee:** Chad  
+**Component:** ui
+**Status:** active
+**Assignee:** Chad
 **Opened:** 2025-09-12T04:39:50.431027Z
 
 ## Context & Links
@@ -19,4 +19,3 @@
 - [ ] Works for daily and hourly aggregations
 - [ ] No layout overlap with summary pane (respects UI-6 grid)
 - [ ] tests/test_ui_labs_critical.py passes
-
