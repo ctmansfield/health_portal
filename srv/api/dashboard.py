@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 import app.hp_etl.db as db
 from app.hp_etl.cache import get as cache_get, set as cache_set
 from .auth import require_api_key
@@ -126,7 +126,7 @@ async def dashboard(
 
 
 # UI routes for previewing the report summary card component
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, JSONResponse
 from pathlib import Path
 
 
