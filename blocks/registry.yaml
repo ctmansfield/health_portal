@@ -52,6 +52,7 @@ blocks:
   - APP-9
 - id: UI-7
   title: Ref bands + legend + Export
+    assignee: Chad
   component: ui
   status: active
   weight:137: null

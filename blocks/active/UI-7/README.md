@@ -1,13 +1,12 @@
-# UI-7 — UI-7
+# UI-7 — Ref bands + legend + Export
 
-**Component:** app  
-**Status:** active  
-**Assignee:** Chad  
-**Opened:** 2025-09-11T10:53:24.748592Z
+**Component:** ui
+**Status:** active
+**Assignee:** Chad
+**Opened:** 2025-09-12T03:20:20.120662Z
 
 ## Context & Links
 
 ## Paths You May Touch
 
 ## Acceptance Criteria
-

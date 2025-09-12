@@ -1,3 +1,3 @@
-# PROMPT for LLM Coder — UI-7 (UI-7)
+# PROMPT for LLM Coder — UI-7 (Ref bands + legend + Export)
 
-Boundaries: app; use only listed paths.
+Boundaries: ui; use only listed paths.
