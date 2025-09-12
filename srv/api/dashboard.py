@@ -236,3 +236,14 @@ async def ui_preview_labs(request: Request, person_id: str):
 async def ui_labs_critical(request: Request, person_id: str):
     # Renders a full page that includes the partial and scripts
     return templates.TemplateResponse("labs_critical.html", {"request": request, "person_id": person_id})
+
+from fastapi import Request
+from starlette.templating import Jinja2Templates
+try:
+    templates
+except NameError:
+    templates = Jinja2Templates(directory="srv/api/templates")
+
+@router.get("/ui/people/{person_id}/labs/critical")
+def labs_critical(request: Request, person_id: str):
+    return templates.TemplateResponse("labs_critical.html", {"request": request, "person_id": person_id})

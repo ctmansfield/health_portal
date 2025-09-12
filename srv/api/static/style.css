@@ -136,3 +136,18 @@ canvas#hrSpark, canvas#spo2Spark{background:rgba(37,99,235,0.04);padding:6px;bor
 .chart-card canvas { height: 320px !important; }
 .chart-card .chart-container,
 .summary-card .hp-sparkline { max-width: 100%; overflow: hidden; }
+
+/* === Labs page === */
+.hp-labs-critical { margin-top: 12px; }
+.hp-labs-toolbar { display:flex; gap:8px; align-items:center; padding:8px 10px; border:1px solid #e6eef8; border-radius:10px; background:#fff; margin-bottom:12px; }
+.hp-labs-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:18px; }
+.hp-labs-chart { background:#fff; border:1px solid #e6eef8; border-radius:12px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.hp-labs-chart h4 { margin: 0 0 8px 0; }
+
+/* Ensure canvases are not gigantic */
+.hp-labs-chart canvas { width:100% !important; height:280px !important; display:block; }
+
+/* === Dashboard 2-col layout for HR chart + Summary === */
+.hp-grid-2 { display:grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap:24px; align-items:start; }
+@media (max-width: 1024px){ .hp-grid-2 { grid-template-columns: 1fr; } }
+.chart-card canvas { height: 300px !important; }
