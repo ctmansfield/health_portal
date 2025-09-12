@@ -54,7 +54,8 @@ blocks:
   title: Ref bands + legend + Export
     assignee: Chad
   component: ui
-  status: active
+  status: done
+    closed_at: 2025-09-12T03:20:24.357922Z
   weight:137: null
   deps:
   - UI-5
