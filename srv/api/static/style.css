@@ -99,3 +99,18 @@ canvas#hrSpark, canvas#spo2Spark{background:rgba(37,99,235,0.04);padding:6px;bor
 /* make sure small sparklines receive pointer events and sit above background */
 .chart-wrap canvas, #hrSpark, #spo2Spark { pointer-events: auto; position: relative; z-index: 2; background-clip: padding-box; }
 
+
+/* Labs Critical layout */
+.hp-toolbar-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.hp-toolbar-row .hp-title{margin-left:auto;font-size:14px;color:#667085}
+.hp-labs-critical .hp-labs-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.hp-labs-body{display:grid;grid-template-columns:1fr;gap:16px}
+.hp-labs-chart .chart-wrap{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden}
+.hp-labs-chart canvas{display:block;width:100%!important;height:100%!important}
+.hp-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.hp-link{color:#2563eb;text-decoration:underline}
+.hp-caption{color:#6b7280;font-size:.85rem}
+.hp-muted{color:#6b7280}
+.hp-error{color:#b91c1c}
+.hp-skeleton{background:linear-gradient(90deg,#f3f4f6,#e5e7eb,#f3f4f6);height:160px;border-radius:12px;animation:s 1.2s infinite}
+@keyframes s{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}

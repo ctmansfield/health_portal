@@ -27,6 +27,45 @@
   function storageGet(key, def){ try{ const v = localStorage.getItem(key); return v == null ? def : v; }catch(e){ return def; } }
   function storageSet(key, val){ try{ localStorage.setItem(key, String(val)); }catch(e){} }
 
+  // CSV download helper for per-metric
+  function _downloadCSV(metric, series){
+    const rows = [['t_utc','t_local','value']];
+    (series||[]).forEach(p => rows.push([p.t_utc||p.t||'', p.t_local||'', p.v==null?'':String(p.v)]));
+    const csv = rows.map(r=> r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = metric.replace(/[^a-z0-9]/gi,'_') + '_series.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  // module state
+  const CHARTS = []; // meta objects stored here
+
+  // preview cache
+  const PREVIEW = { key:null, data:null, ts:0, inflight:null, ttl:30000 };
+  async function fetchPreview(person){
+    const key = String(person||'');
+    const now = Date.now();
+    if(PREVIEW.key === key && PREVIEW.data && (now - PREVIEW.ts) < PREVIEW.ttl) return PREVIEW.data;
+    if(PREVIEW.inflight) {
+      try{ return await PREVIEW.inflight; }catch(e){ return null; }
+    }
+    PREVIEW.inflight = (async ()=>{
+      try{
+        const res = await fetch('/ui/preview/labs/' + encodeURIComponent(key), {cache:'no-store'});
+        if(!res.ok) return null;
+        const j = await res.json();
+        PREVIEW.key = key; PREVIEW.data = j; PREVIEW.ts = Date.now();
+        return j;
+      }catch(e){
+        return null;
+      } finally { PREVIEW.inflight = null; }
+    })();
+    try{ return await PREVIEW.inflight; }catch(e){ return null; }
+  }
+
+  // create container markup
   function makeChartContainer(metric){
     const wrapper = document.createElement('div');
     wrapper.className = 'hp-labs-chart';
@@ -43,68 +82,39 @@
     return wrapper;
   }
 
-  function _downloadCSV(metric, series){
-    const rows = [['t_utc','t_local','value']];
-    (series||[]).forEach(p => rows.push([p.t_utc||p.t||'', p.t_local||'', p.v==null?'':String(p.v)]));
-    const csv = rows.map(r=> r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url;
-    a.download = metric.replace(/[^a-z0-9]/gi,'_') + '_series.csv';
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  }
-
-  // module state
-  const CHARTS = [];
-  const PREVIEW = { key:null, data:null, ts:0, inflight:null, ttl:30000 };
-
-  async function fetchPreview(person){
-    const key = String(person||'');
-    const now = Date.now();
-    if(PREVIEW.key === key && PREVIEW.data && (now - PREVIEW.ts) < PREVIEW.ttl) return PREVIEW.data;
-    if(PREVIEW.inflight){ try{ return await PREVIEW.inflight; }catch(e){ return null; } }
-    PREVIEW.inflight = (async ()=>{
-      try{
-        const res = await fetch('/ui/preview/labs/' + encodeURIComponent(key), {cache:'no-store'});
-        if(!res.ok) return null;
-        const j = await res.json();
-        PREVIEW.key = key; PREVIEW.data = j; PREVIEW.ts = Date.now();
-        return j;
-      }catch(e){ return null; } finally { PREVIEW.inflight = null; }
-    })();
-    try{ return await PREVIEW.inflight; }catch(e){ return null; }
-  }
-
-  // interactions helper (selection overlay, pan/zoom)
+  // interaction overlay + pan/zoom handlers (kept compact)
   function attachInteractions(meta){
-    const canvas = meta.canvas, parent = canvas.parentElement;
+    const canvas = meta.canvas;
+    const parent = canvas.parentElement;
     parent.style.position = parent.style.position || 'relative';
+
     const overlay = document.createElement('div');
     overlay.style.position = 'absolute';
     overlay.style.pointerEvents = 'none';
+    overlay.style.display = 'none';
     overlay.style.background = 'rgba(37,99,235,0.12)';
     overlay.style.border = '1px dashed rgba(37,99,235,0.4)';
-    overlay.style.display = 'none';
-    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.height = '100%';
-    overlay.style.zIndex = 5; overlay.style.boxSizing = 'border-box';
-    parent.appendChild(overlay); meta.overlay = overlay;
+    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.height = '100%'; overlay.style.zIndex = 5;
+    overlay.style.boxSizing = 'border-box';
+    parent.appendChild(overlay);
+    meta.overlay = overlay;
 
-    let dragging=false, startX=0, endX=0;
+    let dragging = false, startX = 0, endX = 0;
     function getTimeAtX(x){
       const rect = canvas.getBoundingClientRect();
-      const rel = Math.max(0, Math.min(1, (x - rect.left)/rect.width));
+      const rel = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
       const idx = Math.floor(rel * (meta.labels.length - 1));
-      return meta.labels[Math.max(0, Math.min(meta.labels.length -1, idx))];
+      return meta.labels[Math.max(0, Math.min(meta.labels.length - 1, idx))];
     }
 
     meta.handlers = {};
     meta.handlers.onPointerDown = function(ev){
       if(ev.button !== 0) return;
-      dragging = true; startX = ev.clientX; endX = startX;
+      dragging = true;
+      startX = ev.clientX; endX = startX;
       overlay.style.display = 'block';
       const rect = canvas.getBoundingClientRect();
-      overlay.style.left = (startX - rect.left) + 'px';
-      overlay.style.width = '0px';
+      overlay.style.left = (startX - rect.left) + 'px'; overlay.style.width = '0px';
       try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
     };
     meta.handlers.onPointerMove = function(ev){
@@ -122,7 +132,8 @@
       try{ canvas.releasePointerCapture(ev.pointerId); }catch(e){}
       const t1 = getTimeAtX(startX), t2 = getTimeAtX(endX);
       if(t1 && t2 && t1 !== t2){
-        const s = t1 < t2 ? t1 : t2, e = t1 < t2 ? t2 : t1;
+        const s = t1 < t2 ? t1 : t2;
+        const e = t1 < t2 ? t2 : t1;
         applyViewWindowToAll(s, e);
       }
     };
@@ -136,10 +147,12 @@
       const win = curEnd - curStart + 1;
       const step = Math.max(1, Math.floor(win * 0.15));
       const delta = ev.deltaY > 0 ? 1 : -1;
-      let newStart = curStart + delta * step, newEnd = curEnd + delta * step;
+      let newStart = curStart + delta * step;
+      let newEnd = curEnd + delta * step;
       if(newStart < 0){ newStart = 0; newEnd = Math.min(len-1, newStart + win -1); }
       if(newEnd > len-1){ newEnd = len-1; newStart = Math.max(0, newEnd - win +1); }
-      applyViewWindowToAll(labels[newStart], labels[newEnd]);
+      const startTime = labels[newStart], endTime = labels[newEnd];
+      applyViewWindowToAll(startTime, endTime);
     };
 
     canvas.addEventListener('pointerdown', meta.handlers.onPointerDown);
@@ -150,24 +163,36 @@
   }
 
   function createChart(canvas, metric, labels, vals, rawSeries, agg){
-    const dataHash = hashSeries(labels) + ':' + hashSeries(vals) + ':' + (hashSeries(rawSeries)||'');
+    // dedupe
+    const dataHash = hashSeries(labels) + ':' + hashSeries(vals) + ':' + (hashSeries(rawSeries) || '');
     if(canvas._hp_hash === dataHash && canvas._hp_chart) return canvas._hp_meta;
+
     try{ if(canvas._hp_chart && typeof canvas._hp_chart.destroy === 'function') canvas._hp_chart.destroy(); }catch(e){}
+
+    // stable size/backing store
     const parent = canvas.parentElement || canvas;
     const cssW = parent.clientWidth || 600, cssH = 160;
     const dpr = window.devicePixelRatio || 1;
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     canvas.width = Math.max(1, Math.floor(cssW * dpr)); canvas.height = Math.max(1, Math.floor(cssH * dpr));
-    const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
 
+    // plugin draws bands before datasets
     const refBandsPlugin = {
       id: 'refBands',
       beforeDatasetsDraw(chart){
         try{
-          const bands = chart.config._refBands; if(!bands || !Array.isArray(bands)) return;
+          const bands = chart.config._refBands;
+          if(!bands || !Array.isArray(bands)) return;
           const yScale = chart.scales.y; const chartArea = chart.chartArea; const ctx = chart.ctx;
-          bands.forEach(b => { if(b.min==null||b.max==null) return; const y1 = yScale.getPixelForValue(b.max); const y2 = yScale.getPixelForValue(b.min); ctx.save(); ctx.fillStyle = 'rgba(34,197,94,0.08)'; ctx.fillRect(chartArea.left, y1, chartArea.right - chartArea.left, Math.max(1, y2 - y1)); ctx.restore(); });
-        }catch(e){}
+          bands.forEach(b=>{
+            if(b.min == null || b.max == null) return;
+            const y1 = yScale.getPixelForValue(b.max);
+            const y2 = yScale.getPixelForValue(b.min);
+            ctx.save(); ctx.fillStyle = 'rgba(34,197,94,0.08)'; ctx.fillRect(chartArea.left, y1, chartArea.right - chartArea.left, Math.max(1, y2 - y1)); ctx.restore();
+          });
+        }catch(e){ /* ignore */ }
       }
     };
 
@@ -179,7 +204,7 @@
     };
 
     const metricKey = canonicalMetric(metric);
-    const storedBands = storageGet('hp_bands_enabled','true') === 'true';
+    const storedBands = storageGet('hp_bands_enabled', 'true') === 'true';
     const bandsToggleEl = document.querySelector('.hp-bands-toggle');
     const uiToggle = bandsToggleEl && typeof bandsToggleEl.getAttribute === 'function' ? bandsToggleEl.getAttribute('aria-pressed') === 'true' : false;
     const bandsEnabled = uiToggle || storedBands;
@@ -203,7 +228,7 @@
 
     attachInteractions(meta);
 
-    // legend: click toggles whole-series hide; Alt+click toggles points-only
+    // accessible legend (per-spec): click toggles visibility, Alt+click toggles points-only
     try{
       const parentEl = canvas.parentElement;
       const legendRoot = parentEl.querySelector('.hp-legend');
@@ -216,14 +241,16 @@
         btn.setAttribute('aria-pressed', storedVis ? 'true' : 'false');
         btn.textContent = metric;
         btn.style.padding = '4px 8px'; btn.style.borderRadius = '6px'; btn.style.border = '1px solid #e6eef8';
-        btn.style.background = storedVis ? '#eefbf3' : '#fff'; btn.style.cursor = 'pointer';
+        btn.style.background = storedVis ? '#eefbf3' : '#fff';
+        btn.style.cursor = 'pointer';
 
         btn.addEventListener('click', function(ev){
+          // Alt+Click toggles points-only
           if(ev.altKey){
-            // points-only toggle
             try{
               const ds = meta.chart.data.datasets[0];
-              if(ds.pointRadius && ds.pointRadius > 0){ ds.pointRadius = 0; } else { ds.pointRadius = meta.origPointRadius || 1; }
+              if(ds.pointRadius && ds.pointRadius > 0){ ds.pointRadius = 0; }
+              else { ds.pointRadius = meta.origPointRadius || 1; }
               meta.chart.update();
             }catch(e){}
             return;
@@ -241,9 +268,10 @@
         item.appendChild(btn);
         legendRoot.appendChild(item);
 
+        // apply initial visibility
         try{ meta.chart.data.datasets[0].hidden = !(storageGet('hp_series_visible.'+meta.metricKey, 'true') === 'true'); meta.chart.update(); }catch(e){}
       }
-    }catch(e){}
+    }catch(e){ /* ignore */ }
 
     CHARTS.push(meta);
     console.debug('labs_critical_v2: created chart for', metric);
@@ -305,7 +333,7 @@
       row.appendChild(ctn);
       const labels = (m.series||[]).map(p=> p.t_utc || p.t || '');
       const vals   = (m.series||[]).map(p=> p.v == null ? null : parseFloat(p.v));
-      try{ createChart(canvas, m.metric, labels, vals, (m.series||[]), el._hp_current_agg || 'daily'); }catch(e){ console.warn('labs_critical_v2: createChart failed', e); }
+      try{ createChart(canvas, m.metric, labels, vals, (m.series||[]), el._hp_current_agg || 'daily'); }catch(e){ console.warn('createChart failed', e); }
       if(btn) btn.addEventListener('click', ()=> _downloadCSV(m.metric, m.series));
     });
     body.appendChild(row);
@@ -346,23 +374,20 @@
   function initToolbar(el){
     const toolbar = el.querySelector('.hp-labs-toolbar'); if(!toolbar) return; toolbar.innerHTML='';
     const status = document.createElement('span'); status.style.marginRight='12px'; status.setAttribute('aria-live','polite');
-    const scopeSel = document.createElement('select'); scopeSel.innerHTML = '<option value="person">This person</option><option value="global">Global</option>'; scopeSel.style.marginRight='8px';
+    const scopeSel = document.createElement('select'); scopeSel.innerHTML = '<option value=\"person\">This person</option><option value=\"global\">Global</option>'; scopeSel.style.marginRight='8px';
     const toggleBtn = document.createElement('button'); toggleBtn.className='hp-export'; toggleBtn.type='button';
-    const aggSel = document.createElement('select'); aggSel.innerHTML = '<option value="daily">Daily</option><option value="hourly">Hourly</option>'; aggSel.style.marginRight='8px'; aggSel.setAttribute('aria-label','Aggregation');
+    const aggSel = document.createElement('select'); aggSel.innerHTML = '<option value=\"daily\">Daily</option><option value=\"hourly\">Hourly</option>'; aggSel.style.marginRight='8px'; aggSel.setAttribute('aria-label','Aggregation');
     const person = el.getAttribute('data-person-id') || 'global'; const globalKey = 'labs_mode_global'; const personKey = `labs_mode_${person}`; const scopeKey = 'labs_mode_scope'; const savedScope = localStorage.getItem(scopeKey) || 'person'; scopeSel.value = savedScope === 'global' ? 'global' : 'person';
     const aggKey = `hp:labs:agg:${person}`; const defaultAgg = el.getAttribute('data-agg-default') || 'daily'; const savedAgg = localStorage.getItem(aggKey) || defaultAgg; aggSel.value = savedAgg;
     function getActiveKey(){ return (scopeSel.value === 'global') ? globalKey : personKey; } function getMode(){ return localStorage.getItem(getActiveKey()) || 'live'; }
     function applyMode(mode){ localStorage.setItem(getActiveKey(), mode); localStorage.setItem(scopeKey, scopeSel.value); if(mode === 'live'){ status.textContent = 'Mode: Live (shows real data)'; toggleBtn.textContent = 'Switch to Preview'; toggleBtn.setAttribute('aria-pressed','false'); loadWithAgg(el, aggSel.value, false); } else { status.textContent = 'Mode: Preview (shows sample data)'; toggleBtn.textContent = 'Switch to Live'; toggleBtn.setAttribute('aria-pressed','true'); fetchPreview(person).then(pd => { if(pd) renderCharts(el, pd); }); } }
-    const bandsKey = 'hp_bands_enabled'; const bandsEnabled = storageGet(bandsKey,'true')==='true'; const bandsToggle = document.createElement('button'); bandsToggle.type='button'; bandsToggle.className='hp-bands-toggle'; bandsToggle.textContent='Show reference bands'; bandsToggle.setAttribute('aria-pressed', bandsEnabled ? 'true' : 'false'); bandsToggle.style.marginRight='8px'; bandsToggle.style.cursor='pointer';
+    const bandsKey = 'hp_bands_enabled'; const bandsEnabled = storageGet(bandsKey, 'true') === 'true'; const bandsToggle = document.createElement('button'); bandsToggle.type='button'; bandsToggle.className='hp-bands-toggle'; bandsToggle.textContent = 'Show reference bands'; bandsToggle.setAttribute('aria-pressed', bandsEnabled ? 'true' : 'false'); bandsToggle.style.marginRight='8px'; bandsToggle.style.cursor = 'pointer';
     const exportAll = document.createElement('button'); exportAll.type='button'; exportAll.className='hp-export-all'; exportAll.textContent='Export CSV (All Visible)'; exportAll.style.marginRight='8px';
     scopeSel.addEventListener('change', ()=>{ localStorage.setItem(scopeKey, scopeSel.value); const m = getMode(); applyMode(m); });
-    toggleBtn.addEventListener('click', ()=>{ const cur = getMode(); applyMode(cur==='live'?'preview':'live'); });
-    aggSel.addEventListener('change', ()=>{ localStorage.setItem(aggKey, aggSel.value); const mode = getMode(); if(mode==='live'){ loadWithAgg(el, aggSel.value, false); } else { fetchPreview(person).then(pd=>{ if(pd) renderCharts(el,pd); }); } });
-    bandsToggle.addEventListener('click', ()=>{ const cur = bandsToggle.getAttribute('aria-pressed')==='true'; const next = !cur; bandsToggle.setAttribute('aria-pressed', next ? 'true' : 'false'); storageSet(bandsKey,next); try{ CHARTS.forEach(m=>{ if(m.chart){ m.chart.config._refBands = next ? REF_BANDS[m.metricKey || canonicalMetric(m.metric)] : null; m.chart.update(); } }); }catch(e){} });
-    exportAll.addEventListener('click', ()=>{ try{ const personId = el.getAttribute('data-person-id')||'current'; const agg = el._hp_current_agg || aggSel.value || 'daily'; const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; const header=['# timezone: '+tz]; const rows=[['metric','agg','t_utc','t_local','value']]; CHARTS.forEach(m=>{ const mk=m.metricKey||canonicalMetric(m.metric); const visible = storageGet('hp_series_visible.'+mk,'true')==='true'; if(visible && Array.isArray(m.rawSeries)){ const toExport = (agg==='hourly')?downsample(m.rawSeries,2000):m.rawSeries.slice(); toExport.forEach(p=> rows.push([m.metric, m.agg||agg, p.t_utc||p.t||'', p.t_local||'', (p.v==null?'':String(p.v))])); } }); const csv = header.join('\\n')+'\\n'+rows.map(r=> r.map(c=>'\"'+String(c).replace(/\"/g,'\"\"')+'\"').join(',')).join('\\n'); const blob=new Blob([csv],{type:'text/csv'}); const now=new Date(); const pad=n=>String(n).padStart(2,'0'); const ts=now.getFullYear()+''+pad(now.getMonth()+1)+''+pad(now.getDate())+'-'+pad(now.getHours())+''+pad(now.getMinutes()); const filename='labs_'+(personId||'current')+'_'+(agg||'')+'_'+ts+'.csv'; const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename.replace(/[^a-z0-9_\\-\\.]/gi,'_'); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }catch(e){ console.warn('labs_critical_v2: export failed', e); } });
-    toolbar.appendChild(status); toolbar.appendChild(scopeSel); toolbar.appendChild(aggSel); toolbar.appendChild(bandsToggle); toolbar.appendChild(exportAll); toolbar.appendChild(toggleBtn); applyMode(getMode());
-  }
-
-  function boot(){ document.querySelectorAll(sel).forEach(el=> initToolbar(el)); }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
-})();
+    toggleBtn.addEventListener('click', ()=>{ const cur = getMode(); applyMode(cur === 'live' ? 'preview' : 'live'); });
+    aggSel.addEventListener('change', ()=>{ localStorage.setItem(aggKey, aggSel.value); const mode = getMode(); if(mode === 'live'){ loadWithAgg(el, aggSel.value, false); } else { fetchPreview(person).then(pd=>{ if(pd) renderCharts(el, pd); }); } });
+    bandsToggle.addEventListener('click', ()=>{ const cur = bandsToggle.getAttribute('aria-pressed')==='true'; const next = !cur; bandsToggle.setAttribute('aria-pressed', next ? 'true' : 'false'); storageSet(bandsKey, next); try{ CHARTS.forEach(m=>{ if(m.chart){ m.chart.config._refBands = next ? REF_BANDS[m.metricKey || canonicalMetric(m.metric)] : null; m.chart.update(); } }); }catch(e){} });
+    exportAll.addEventListener('click', ()=>{ try{ const personId = el.getAttribute('data-person-id') || 'current'; const agg = el._hp_current_agg || aggSel.value || 'daily'; const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; const header = ['# timezone: '+tz]; const rows=[['metric','agg','t_utc','t_local','value']]; CHARTS.forEach(m=>{ const mk = m.metricKey || canonicalMetric(m.metric); const visible = storageGet('hp_series_visible.'+mk,'true') === 'true'; if(visible && Array.isArray(m.rawSeries)){ const toExport = (agg==='hourly')?downsample(m.rawSeries,2000):m.rawSeries.slice(); toExport.forEach(p=> rows.push([m.metric, m.agg||agg, p.t_utc||p.t||'', p.t_local||'', (p.v==null?'':String(p.v))])); } }); const csv = header.join('\\n') + '\\n' + rows.map(r=> r.map(c=> '\"'+String(c).replace(/\"/g,'\"\"')+'\"').join(',')).join('\\n'); const blob = new Blob([csv],{type:'text/csv'}); const now=new Date(); const pad=n=>String(n).padStart(2,'0'); const ts=now.getFullYear()+''+pad(now.getMonth()+1)+''+pad(now.getDate())+'-'+pad(now.getHours())+''+pad(now.getMinutes()); const filename='labs_'+(personId||'current')+'_'+(agg||'')+'_'+ts+'.csv'; const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename.replace(/[^a-z0-9_\\-\\.]/gi,'_'); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}catch(e){ console.warn('labs_critical_v2: export failed', e); } });
+    toolbar.appendChild(status); toolbar.appendChild(scopeSel); toolbar.appendChild(aggSel); toolbar.appendChild(bandsToggle); toolbar.appendChild(exportAll); toolbar.appendChild(toggleBtn); applyMode(getMode()); }
+  function boot(){ document.querySelectorAll(sel).forEach(el=> initToolbar(el)); } if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot(); })();
+"}]}
