@@ -114,3 +114,25 @@ canvas#hrSpark, canvas#spo2Spark{background:rgba(37,99,235,0.04);padding:6px;bor
 .hp-error{color:#b91c1c}
 .hp-skeleton{background:linear-gradient(90deg,#f3f4f6,#e5e7eb,#f3f4f6);height:160px;border-radius:12px;animation:s 1.2s infinite}
 @keyframes s{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}
+
+/* --- Dashboard layout fixes --- */
+.dashboard-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width: 1024px){ .dashboard-grid{grid-template-columns:2fr 1fr} }
+.panel{background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(2,8,20,.06);padding:16px}
+.panel h2,h3,h4{margin-top:0}
+
+/* chart + summary side-by-side; stack on small screens */
+.hp-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .hp-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* keep the big chart reasonable */
+.chart-card canvas { height: 320px !important; }
+.chart-card .chart-container,
+.summary-card .hp-sparkline { max-width: 100%; overflow: hidden; }

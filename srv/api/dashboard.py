@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import Request, APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 import app.hp_etl.db as db
@@ -230,3 +230,9 @@ async def ui_preview_labs(request: Request, person_id: str):
         },
     ]
     return _no_store_headers(JSONResponse(content=sample))
+
+
+@router.get("/ui/people/{person_id}/labs/critical")
+async def ui_labs_critical(request: Request, person_id: str):
+    # Renders a full page that includes the partial and scripts
+    return templates.TemplateResponse("labs_critical.html", {"request": request, "person_id": person_id})
