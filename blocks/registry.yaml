@@ -43,15 +43,19 @@ blocks:
   - UI-5
 - id: APP-10
   title: Ref ranges & flagging
+    assignee: Chad
   component: app
-  status: active
+  status: done
+    closed_at: 2025-09-12T03:20:18.406468Z
   weight:136: null
   deps:
   - APP-9
 - id: UI-7
   title: Ref bands + legend + Export
+    assignee: Chad
   component: ui
-  status: active
+  status: done
+    closed_at: 2025-09-12T03:20:24.357922Z
   weight:137: null
   deps:
   - UI-5
