@@ -43,6 +43,7 @@ blocks:
   - UI-5
 - id: APP-10
   title: Ref ranges & flagging
+    assignee: Chad
   component: app
   status: active
   weight:136: null

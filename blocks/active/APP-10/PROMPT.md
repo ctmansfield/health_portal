@@ -1,3 +1,3 @@
-# PROMPT for LLM Coder — APP-10 (APP-10)
+# PROMPT for LLM Coder — APP-10 (Ref ranges & flagging)
 
 Boundaries: app; use only listed paths.
