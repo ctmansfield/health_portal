@@ -88,7 +88,10 @@
 window.hrLabels = {{ labels | tojson }};
 window.hrData = {{ hr_values | tojson }};
 window.spo2Data = {{ spo2_values | tojson }};
-</script>
-<script src="/static/js/dashboard_charts.js" defer></script>
 
+window.personId = "{{ person_id }}";
+</script>
+<script src="/static/js/labs_overlays.js" defer></script>
+<script src="/static/js/dashboard_charts.js" defer></script>
 {% endblock %}
+

@@ -1,0 +1,8 @@
+pattern,loinc_code,canonical_name,unit_hint,notes
+ALT,1742-6,Alanine aminotransferase,U/L,"ALT (serum/plasma)"
+AST,1920-8,Aspartate aminotransferase,U/L,"AST (serum/plasma)"
+ALKALINE PHOSPHATASE,6768-6,Alkaline phosphatase,U/L,"ALP (serum/plasma)"
+GGT,2324-2,Gamma glutamyl transferase,U/L,"GGT (serum/plasma)"
+BILIRUBIN, TOTAL,1975-2,Bilirubin total,mg/dL,"Total bilirubin"
+BILIRUBIN, DIRECT,1968-7,Bilirubin direct,mg/dL,"Direct bilirubin"
+ALBUMIN,1751-7,Albumin, g/dL,"Serum albumin"

@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from . import dashboard, dashboard_events, genomics
 from .v1 import __init__ as v1pkg
@@ -28,8 +29,27 @@ try:
 except Exception:
     pass
 
+# favicon route
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("srv/api/static/favicon.ico")
 
 # healthz
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+
+
+# optional labs router
+try:
+    from .labs_api import router as labs_router
+    app.include_router(labs_router)
+except Exception:
+    pass
+
+# optional records router
+try:
+    from .records_api import router as records_router
+    app.include_router(records_router)
+except Exception:
+    pass

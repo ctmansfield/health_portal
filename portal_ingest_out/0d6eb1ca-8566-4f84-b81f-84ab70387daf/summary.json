@@ -1,0 +1,9 @@
+{
+  "run_id": "0d6eb1ca-8566-4f84-b81f-84ab70387daf",
+  "inputs": [
+    "/mnt/nas_storage/import/portal_20250625.txt"
+  ],
+  "staged_rows": 585,
+  "duplicates": 696,
+  "rejections": 325
+}

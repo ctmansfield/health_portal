@@ -1,0 +1,9 @@
+{
+  "run_id": "9637f7d7-323e-4c0f-9652-7f8f6d4c19d9",
+  "inputs": [
+    "/mnt/nas_storage/import/portal_20250625_clean.csv"
+  ],
+  "staged_rows": 0,
+  "duplicates": 0,
+  "rejections": 0
+}

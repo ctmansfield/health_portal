@@ -20,6 +20,17 @@
   // Add global caches
   let _criticalMedEvents = [];
 
+  // Add test medication events for overlay testing
+  const TEST_MED_EVENTS = [
+    { time: '2023-12-06T00:00:00Z', label: 'Testosterone 150mg/week' },
+    { time: '2022-02-26T00:00:00Z', label: 'Lisinopril 10mg' },
+    { time: '2022-04-14T00:00:00Z', label: 'Lisinopril 20mg' },
+    { time: '2023-06-15T00:00:00Z', label: 'Lisinopril 80mg daily' },
+    { time: '2024-07-01T00:00:00Z', label: 'Lisinopril discontinued' },
+    { time: '2025-03-06T00:00:00Z', label: 'Lisinopril resumed 40mg daily' },
+    { time: '2025-05-06T00:00:00Z', label: 'Lisinopril stopped' }
+  ];
+
   async function fetchSeries(personId, metrics, startDate, endDate){
     const baseUrl = `/labs/${encodeURIComponent(personId)}/critical-series`;
     const params = new URLSearchParams();
@@ -90,7 +101,6 @@
     });
   }
 
-  // Update renderCharts to accept medEvents param
   function renderCharts(el, medEvents=[]) {
     if(!_dataCache) return;
     const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'))
@@ -146,7 +156,6 @@
     }
   }
 
-  // Update loadAndRender to fetch meds and re-render with overlays
   async function loadAndRender(el, startDate, endDate) {
     try {
       _personId = el.getAttribute('data-person-id');
@@ -156,7 +165,13 @@
       _dataCache = data;
 
       const medEvents = await fetchMedications(_personId);
-      _criticalMedEvents = medEvents || [];
+
+      // Merge test events with fetched events
+      const mergedEvents = [...medEvents, ...TEST_MED_EVENTS];
+
+      // Filter valid med events
+      const validMedEvents = mergedEvents.filter(e => e && typeof e.time === 'string' && typeof e.label === 'string');
+      _criticalMedEvents = validMedEvents;
 
       setupUI(el, Object.keys(METRIC_LABELS), metrics);
       renderCharts(el, _criticalMedEvents);
@@ -174,3 +189,4 @@
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+

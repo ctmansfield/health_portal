@@ -129,3 +129,6 @@ Optionally add favicon to resolve 404 for /favicon.ico requests.
 Further integration and unit testing expansions for robustness.
 User to test the liver panel page extensively and confirm crash causes, then iterate fixes accordingly.
 This summary captures the entire conversation’s technical context, changes made, debugging steps, and next actionable items, enabling seamless continuation of work.
+## 2025-09-14_15-12-38 — Design scaffold v0.4.1 (FHIR core, critical-labs MV, importer, APIs, docs)
+- Added migrations, importer, /labs critical-series, /records browse; docs; guardrails.
+

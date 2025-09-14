@@ -1,0 +1,9 @@
+{
+  "run_id": "6a44d32e-9b1d-4679-90c1-4aef0a74680d",
+  "inputs": [
+    "/incoming/portal_20250625.txt"
+  ],
+  "staged_rows": 0,
+  "duplicates": 0,
+  "rejections": 0
+}
