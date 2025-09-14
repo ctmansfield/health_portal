@@ -7,15 +7,10 @@ from .v1 import __init__ as v1pkg
 from .reports import router as reports_router
 
 app = FastAPI()
-from fastapi.staticfiles import StaticFiles
-app.mount("/static", StaticFiles(directory="srv/api/static"), name="static")
 
-# Mount static
-app.mount(
-    "/static",
-    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
-    name="static",
-)
+# Mount static files (single mount)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # include routers
 app.include_router(dashboard.router)

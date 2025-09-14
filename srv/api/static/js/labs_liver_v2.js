@@ -2,33 +2,34 @@
   'use strict';
 
   // Import shared utils
-  const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeCheckbox, makeDateSelect } = window.hpLabsShared;
-
-  // After shared utils import, import overlays
+  const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeCheckbox, makeDateSelect} = window.hpLabsShared;
   const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
 
-  const SEL = '.hp-labs-critical';
+  const SEL = '.hp-labs-liver';
 
   const METRIC_LABELS = {
-    hr: 'Heart Rate',
-    spo2: 'SpO2'
+    alt: 'ALT',
+    ast: 'AST',
+    alp: 'ALP',
+    ggt: 'GGT',
+    bili_total: 'Bilirubin Total',
+    bili_direct: 'Bilirubin Direct',
+    albumin: 'Albumin'
   };
 
   let _dataCache = null;
   let _personId = null;
-
-  // Add global caches
-  let _criticalMedEvents = [];
+  let _liverMedEvents = [];
 
   async function fetchSeries(personId, metrics, startDate, endDate){
-    const baseUrl = `/labs/${encodeURIComponent(personId)}/critical-series`;
+    const baseUrl = `/labs/${encodeURIComponent(personId)}/liver-series`;
     const params = new URLSearchParams();
     if(metrics && metrics.length) params.set('metrics', metrics.join(','));
     if(startDate) params.set('start_date', startDate);
     if(endDate) params.set('end_date', endDate);
 
     const response = await fetch(baseUrl + '?' + params.toString(), {cache:'no-store'});
-    if(!response.ok) throw new Error('Failed to load critical series');
+    if(!response.ok) throw new Error('Failed to load series');
     return response.json();
   }
 
@@ -43,10 +44,8 @@
 
     const {minDate, maxDate} = getDateRange(_dataCache);
 
-    const startFallback = minDate instanceof Date && !isNaN(minDate) ? minDate.toISOString().slice(0,10) : new Date().toISOString().slice(0,10);
-    const endFallback = maxDate instanceof Date && !isNaN(maxDate) ? maxDate.toISOString().slice(0,10) : new Date().toISOString().slice(0,10);
-    const storedStart = storageGet('critical_date_start', startFallback);
-    const storedEnd = storageGet('critical_date_end', endFallback);
+    const storedStart = storageGet('liver_date_start', minDate.toISOString().slice(0,10));
+    const storedEnd = storageGet('liver_date_end', maxDate.toISOString().slice(0,10));
 
     const boxList = document.createElement('div');
     boxList.style.display = 'flex';
@@ -62,8 +61,8 @@
     dateRangeContainer.style.display = 'flex';
     dateRangeContainer.style.alignItems = 'center';
 
-    const startSelect = makeDateSelect('critical_start_date', 'Start Date', storedStart, minDate, maxDate);
-    const endSelect = makeDateSelect('critical_end_date', 'End Date', storedEnd, minDate, maxDate);
+    const startSelect = makeDateSelect('liver_start_date', 'Start Date', storedStart, minDate, maxDate);
+    const endSelect = makeDateSelect('liver_end_date', 'End Date', storedEnd, minDate, maxDate);
 
     dateRangeContainer.appendChild(startSelect);
     dateRangeContainer.appendChild(endSelect);
@@ -73,24 +72,23 @@
 
     controls.addEventListener('change', e => {
       if(e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
-        renderCharts(el);
+        renderCharts(el, _liverMedEvents);
       } else if(e.target.tagName === 'SELECT') {
-        const start = $('#critical_start_date').value;
-        const end = $('#critical_end_date').value;
+        const start = $('#liver_start_date').value;
+        const end = $('#liver_end_date').value;
         if(start > end){
           alert('Start date must be before or equal to end date.');
-          if(e.target.id === 'critical_start_date') e.target.value = end;
+          if(e.target.id === 'liver_start_date') e.target.value = end;
           else e.target.value = start;
           return;
         }
-        storageSet('critical_date_start', start);
-        storageSet('critical_date_end', end);
+        storageSet('liver_date_start', start);
+        storageSet('liver_date_end', end);
         loadAndRender(el, start, end);
       }
     });
   }
 
-  // Update renderCharts to accept medEvents param
   function renderCharts(el, medEvents=[]) {
     if(!_dataCache) return;
     const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'))
@@ -114,7 +112,7 @@
 
     const ctx = canvas.getContext('2d');
 
-    const colors = ['#2563eb', '#4ade80'];
+    const colors = ['#2563eb', '#f97316', '#4ade80', '#f43f5e', '#60a5fa', '#a78bfa', '#fca5a5'];
 
     const datasets = checkedMetrics.map((m, idx) => ({
       label: METRIC_LABELS[m] || m,
@@ -125,9 +123,9 @@
       pointRadius: 2
     }));
 
-    if(window._labsCriticalChartInstance) window._labsCriticalChartInstance.destroy();
+    if(window._labsLiverChartInstance) window._labsLiverChartInstance.destroy();
 
-    window._labsCriticalChartInstance = new Chart(ctx, {
+    window._labsLiverChartInstance = new Chart(ctx, {
       type: 'line',
       data: {datasets: datasets},
       options: {
@@ -141,12 +139,12 @@
       }
     });
 
-    if(medEvents && medEvents.length > 0) {
-      addMedicationOverlays(window._labsCriticalChartInstance, medEvents, { color:'#4ade80', label:'Medications' });
+    // Add medication overlays if any
+    if(medEvents && medEvents.length > 0){
+      addMedicationOverlays(window._labsLiverChartInstance, medEvents, { color:'#f43f5e', label:'Medications' });
     }
   }
 
-  // Update loadAndRender to fetch meds and re-render with overlays
   async function loadAndRender(el, startDate, endDate) {
     try {
       _personId = el.getAttribute('data-person-id');
@@ -156,16 +154,16 @@
       _dataCache = data;
 
       const medEvents = await fetchMedications(_personId);
-      _criticalMedEvents = medEvents || [];
+      _liverMedEvents = medEvents || [];
 
       setupUI(el, Object.keys(METRIC_LABELS), metrics);
-      renderCharts(el, _criticalMedEvents);
+      renderCharts(el, _liverMedEvents);
     } catch (e) {
-      console.warn('Error loading critical panel:', e);
+      console.warn('Error loading liver panel:', e);
     }
   }
 
-  window.labsCriticalPanel = { loadAndRender };
+  window.labsLiverPanel = { loadAndRender };
 
   function boot() {
     document.querySelectorAll(SEL).forEach(el => loadAndRender(el));
@@ -173,4 +171,5 @@
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
+
 })();

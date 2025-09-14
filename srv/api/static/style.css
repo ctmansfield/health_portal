@@ -151,3 +151,37 @@ canvas#hrSpark, canvas#spo2Spark{background:rgba(37,99,235,0.04);padding:6px;bor
 .hp-grid-2 { display:grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap:24px; align-items:start; }
 @media (max-width: 1024px){ .hp-grid-2 { grid-template-columns: 1fr; } }
 .chart-card canvas { height: 300px !important; }
+
+/* ---- Dashboard top row: chart + summary side-by-side ---- */
+.hp-dash-toprow { display:grid; gap:16px; grid-template-columns: 2fr 1fr; align-items:start; }
+@media (max-width: 1100px) { .hp-dash-toprow { grid-template-columns: 1fr; } }
+
+.hp-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+
+.hp-card.chart-large canvas { height: 360px !important; width: 100% !important; }
+
+/* ===== Dashboard two-column layout (chart + summary) ===== */
+.hp-top-two-col{
+  display:grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items:start;
+}
+@media (max-width: 1100px){
+  .hp-top-two-col{ grid-template-columns: 1fr; }
+}
+
+/* Keep big charts from getting absurdly tall */
+.hp-chart-figure canvas{
+  width: 100% !important;
+  height: 360px !important;      /* Adjust if you want a bit taller/shorter */
+  max-height: 420px !important;
+}
+
+/* Card shell (if not already present) */
+.hp-card{
+  background:#fff;
+  border-radius:12px;
+  box-shadow: 0 6px 24px rgba(2,6,23,0.06);
+  padding:16px;
+}

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from .routers.liver import router as liver_router
 from fastapi.responses import RedirectResponse
 import os
 from hp_etl.db import pg, dsn_from_env

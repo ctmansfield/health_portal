@@ -5,81 +5,83 @@
 {% endblock %}
 {% block extra_head %}{% endblock %}
 {% block content %}
-  <main class="container">
+  <header style="background-color:#2563eb; padding:12px 16px; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+    <div><a href="/dashboard" style="color:#fff; text-decoration:underline; font-weight:bold;">Dashboard Home</a></div>
+    <div><a href="/logout" style="color:#fff; text-decoration:none;">Logout</a></div>
+  </header>
+
+  <main class="container" style="margin-top:16px;">
+
+    <h1 style="color:#2563eb;">Health Portal</h1>
     <div class="controls">
       <form method="get" class="form-inline">
         <label>Person: <input type="text" name="person_id" value="{{ person_id }}"></label>
         <label>Days: <input type="number" name="days" value="{{ days }}" min="1" max="365"></label>
         <button type="submit" class="btn">Refresh</button>
       </form>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <a href="/logout" class="header-link">Logout</a>
-      </div>
     </div>
-
     <div class="dashboard-main">
-      <section class="panel chart-panel">
-        <h2></div>
-<div class="dashboard-grid">
-  <div class="panel">
-    <h2>Median HR (Daily)</h2>
-        <div class="chart-wrap" data-chart="hrDaily">
-          <canvas id="hrDaily"></canvas>
-        </div>
-      </section>
-
-      <aside class="panel summary-card">
-        <h2>Summary</h2>
-        <div class="kv">
-          <div><strong>Person</strong><div>{{ person_id }}</div></div>
-          <div><strong>Window</strong><div>Last {{ days }} days</div></div>
-        </div>
-        <div class="mt-12">
-          <a href="/dashboard?person_id={{ person_id }}&days={{ days }}">Refresh</a> · <a href="/ui/people/{{ person_id }}/labs/critical?preview=1">View Labs Charts</a>
-        </div>
-        <div class="flex-row mt-12">
-          <div style="flex:1">
-            <div class="text-small">Latest HR</div>
-            <div class="value-large">{{ hr_values[-1] if hr_values|length else '—' }}</div>
-            <canvas id="hrSpark" width="200" height="40"></canvas>
+      <div class="dashboard-grid">
+        <section class="panel chart-panel">
+          <h2>Median HR (Daily)</h2>
+          <div class="chart-wrap" data-chart="hrDaily">
+            <canvas id="hrDaily"></canvas>
           </div>
-          <div style="flex:1">
-            <div class="text-small">Min SpO2 (recent)</div>
-            <div class="value-large">{{ (spo2_values|last)|round(2) if spo2_values|length else '—' }}</div>
-            <canvas id="spo2Spark" width="200" height="40"></canvas>
-          </div>
-        </div>
-        <div class="mt-16">
-          <h3 class="mb-8">SpO2 (Daily Min)</h3>
-          <canvas id="spo2Chart" width="400" height="150"></canvas>
-        </div>
-      </aside>
-    </div>
+        </section>
 
-    <div class="card mt-18">
-      <h2>Recent AI Findings</h2>
-      <div class="table">
-      <table>
-        <thead><tr><th>Time</th><th>Metric</th><th>Level</th><th>Score</th><th>Context</th></tr></thead>
-        <tbody>
-        {% for f in findings %}
-          <tr>
-            <td>{{ f.finding_time }}</td>
-            <td>{{ f.metric }}</td>
-            <td><span class="badge">{{ f.level }}</span></td>
-            <td>{{ '%.2f'|format(f.score) }}</td>
-            <td>{{ f.context }}</td>
-          </tr>
-        {% endfor %}
-        {% if findings|length == 0 %}
-          <tr><td colspan="5">No findings in this time window.</td></tr>
-        {% endif %}
-        </tbody>
-      </table>
+        <aside class="summary-card"><div class="panel">
+          <h2>Summary</h2>
+          <div class="kv">
+            <div><strong>Person</strong><div>{{ person_id }}</div></div>
+            <div><strong>Window</strong><div>Last {{ days }} days</div></div>
+          </div>
+          <div class="mt-12">
+            <a href="/dashboard?person_id={{ person_id }}&days={{ days }}">Refresh</a> &middot; <a href="/ui/people/{{ person_id }}/labs/critical?preview=1">View Labs Charts</a>
+          </div>
+          <div class="flex-row mt-12">
+            <div style="flex:1">
+              <div class="text-small">Latest HR</div>
+              <div class="value-large">{{ hr_values[-1] if hr_values|length else '—' }}</div>
+              <canvas id="hrSpark" width="200" height="40"></canvas>
+            </div>
+            <div style="flex:1">
+              <div class="text-small">Min SpO2 (recent)</div>
+              <div class="value-large">{{ (spo2_values|last)|round(2) if spo2_values|length else '—' }}</div>
+              <canvas id="spo2Spark" width="200" height="40"></canvas>
+            </div>
+          </div>
+          <div class="mt-16">
+            <h3 class="mb-8">SpO2 (Daily Min)</h3>
+            <canvas id="spo2Chart" width="400" height="150"></canvas>
+          </div>
+        </div></aside>
       </div>
-    </div>
+
+      <div class="card mt-18">
+        <h2>Recent AI Findings</h2>
+        <div class="table">
+        <table>
+          <thead><tr><th>Time</th><th>Metric</th><th>Level</th><th>Score</th><th>Context</th></tr></thead>
+          <tbody>
+          {% for f in findings %}
+            <tr>
+              <td>{{ f.finding_time }}</td>
+              <td>{{ f.metric }}</td>
+              <td><span class="badge">{{ f.level }}</span></td>
+              <td>{{ '%.2f'|format(f.score) }}</td>
+              <td>{{ f.context }}</td>
+            </tr>
+          {% endfor %}
+          {% if findings|length == 0 %}
+            <tr><td colspan="5">No findings in this time window.</td></tr>
+          {% endif %}
+          </tbody>
+        </table>
+        </div>
+      </div>
 
     <div class="footer">Data from analytics views. Last updated: server time.</div>
+    </div>
   </main>
 
 <script>

@@ -1,6 +1,6 @@
 {% include 'components/header.html' %}
 
-<div class="hp-labs-critical" data-person-id="{{ person_id|default('') }}" data-metrics="hr,spo2">
+<div class="hp-labs-liver" data-person-id="{{ person_id|default('') }}" data-metrics="alt,ast,alp,ggt,bili_total,bili_direct,albumin">
   <div class="hp-labs-controls" style="margin-bottom:12px"></div>
   <div class="hp-labs-body"></div>
 </div>
@@ -8,9 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="/static/js/labs_shared.js"></script>
 <script src="/static/js/labs_overlays.js"></script>
-<script src="/static/js/labs_critical_v2.js"></script>
+<script src="/static/js/labs_liver_v2.js"></script>
 <style>
-.hp-labs-critical{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff;max-width:1000px}
+.hp-labs-liver{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff;max-width:1000px}
 .hp-labs-row{display:flex;flex-wrap:wrap;gap:16px;margin:8px 0}
 .hp-labs-chart{flex:1 1 320px;border-radius:8px;padding:8px;background:#f8fafc}
 .hp-labs-chart figure{margin:0}

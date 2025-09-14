@@ -1,20 +1,16 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}Health Portal{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
-  {% block head %}{% endblock %}
-{% block head_extra %}{% endblock %}
-{% block head_extra %}{% endblock %}
-</head>
-<body>
-  <header class="header">
-    {% include 'includes/header.html' %}
-  </header>
-
-  {% block content %}{% endblock %}
-
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <title>{% block title %}Health Portal{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/style.css" />
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    {% include "includes/header.html" %}
+    <main class="hp-main">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
 </html>
