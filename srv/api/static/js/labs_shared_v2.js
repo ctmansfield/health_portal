@@ -252,20 +252,24 @@
     });
   }
 
-  async function loadAndRender(el, startDate, endDate) {
-    try {
-      _personId = el.getAttribute('data-person-id');
-      const data = await fetchAllLabs(_personId, startDate, endDate);
-      _dataCache = data || [];
-
-      const metadata = await fetchLabMetadata(_personId);
-      console.log('Labs Metadata raw:', metadata);
-
-      // client-side filter for hr and spo2
-      const filteredMetadata = metadata.filter(m => {
-        const mLower = (m.metric || '').toLowerCase();
-        return mLower !== 'hr' && mLower !== 'spo2';
-      });
+  async function loadAndRender() {
+  const [seriesRes, metaRes] = await Promise.allSettled([
+    fetchJSON(`/labs/me/all-series`),
+    fetchLabMetadata()
+  ]);
+  if (seriesRes.status !== "fulfilled") {
+    console.error("Error loading shared labs series:", seriesRes.reason);
+    showError("Could not load lab series. Please retry.");
+    return;
+  }
+  const series = seriesRes.value;
+  const meta = metaRes.status === "fulfilled" ? metaRes.value : {};
+  if (metaRes.status !== "fulfilled") {
+    console.warn("Labs metadata unavailable, rendering without it:", metaRes.reason);
+  }
+  try { renderGraphs(series, meta); }
+  catch (e) { console.error("Render error:", e); showError("Unable to render lab graphs."); }
+});
 
       console.log('Labs Metadata filtered:', filteredMetadata);
 

@@ -10,11 +10,14 @@ Parallel dev lanes with stable contracts:
 - **Dashboard** → consumes the API (no DB)
 
 ## Quick Links
-- Program & System Design: `docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md`
-- Workstreams & Interface Contracts: `docs/reporting_scaffold/Parallel_Workstreams_and_Interface_Contracts.md`
-- System Architecture & Design: `docs/reporting_scaffold/System_Architecture_and_Design.md`
-- Architecture & ADRs: `docs/architecture/`
-- Platform/System Improvements: `docs/reporting_scaffold/Platform_System_Improvements.md`
+- Docs Home: `docs/index.md`
+- Architecture & ADRs: `docs/explanations/architecture/`
+- API Reference: `docs/reference/api/`
+- Program & System Design: `docs/explanations/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md`
+- Workstreams & Interface Contracts: `docs/explanations/reporting_scaffold/Parallel_Workstreams_and_Interface_Contracts.md`
+- System Architecture & Design: `docs/explanations/reporting_scaffold/System_Architecture_and_Design.md`
+- Platform/System Improvements: `docs/explanations/reporting_scaffold/Platform_System_Improvements.md`
+- Changelog: `CHANGELOG.md`
 - Contributing (LLM quickstart): `CONTRIBUTING.md`
 
 ## API v1
