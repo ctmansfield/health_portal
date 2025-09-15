@@ -1,0 +1,47 @@
+name: Docs checks
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+      - 'scripts/docs/**'
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reindex docs and rebuild catalogs
+        run: |
+          python scripts/docs/reindex_docs.py
+          python scripts/docs/build_catalog.py
+          python scripts/docs/build_adr_index.py
+          python scripts/docs/build_contracts_registry.py
+          python scripts/docs/build_code_map.py
+          python scripts/docs/build_glossary_synonyms.py
+          python scripts/docs/staleness_report.py
+          python scripts/docs/link_check.py
+      - name: Fail if docs artifacts changed
+        run: |
+          git diff --exit-code -- docs/index.md docs/catalog.json docs/architecture/ADRs/index.md docs/reference/contracts/index.json docs/reference/code_map.json docs/reference/glossary_synonyms.json docs/status/staleness.json \
+          || (echo "Docs artifacts changed. Run the scripts in scripts/docs/ and commit the results." && exit 1)
+      - name: Require change fragment unless skipped
+        shell: bash
+        run: |
+          LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
+          if echo "$LABELS_JSON" | grep -qi 'skip-changelog'; then
+            echo "skip-changelog label present; skipping fragment check"
+            exit 0
+          fi
+          COUNT=$(ls -1 docs/changes/unreleased/*.md 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No change fragments found under docs/changes/unreleased. Add one or label PR with skip-changelog."
+            exit 1
+          fi
+          echo "Found $COUNT change fragment(s)."

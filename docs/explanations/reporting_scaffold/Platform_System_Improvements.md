@@ -2,4 +2,4 @@
 
 Now/Next/Later improvements for validation, observability, and exports.
 
-Moved to docs/explanations/reporting_scaffold/Platform_System_Improvements.md
+[Relocated from docs/reporting_scaffold/Platform_System_Improvements.md]

@@ -1,3 +1,5 @@
+[Moved] See docs/explanations/FHIR_Addendum.md
+
 Critical Labs — FHIR Addendum (v1)
 
 Applies to real lab results (CBC/CMP, troponin, creatinine, etc.) using FHIR R4 resources. Primary resources: Observation (category: laboratory) and DiagnosticReport. Secondary: Specimen, Device, Encounter, Organization. Units are UCUM; tests identified by LOINC.

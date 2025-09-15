@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Documentation structure overhaul (Diátaxis): docs/index.md, how-to/, reference/, explanations/, runbooks/, and changes/ with newsfragment workflow.
+- Docs automation scripts: reindex_docs.py, build_catalog.py, build_adr_index.py, build_contracts_registry.py, build_code_map.py, build_glossary_synonyms.py, staleness_report.py, link_check.py (under scripts/docs/).
+- CI workflow (.github/workflows/docs.yml) to enforce docs artifacts, run link checker, and require change fragments (or skip-changelog label).
+- Makefile target `docs` to rebuild docs artifacts locally (index, catalogs, registry, glossary synonyms, staleness, link check).
+- Generated artifacts: docs/catalog.json; docs/reference/contracts/index.json; docs/reference/code_map.json; docs/reference/glossary_synonyms.json; docs/status/staleness.json; docs/architecture/ADRs/index.md.
 - New shared labs UI (`labs_shared_v2.js`) with grouped clinical categories and selectable metrics.
 - Backend `/labs/{person_id}/labs-metadata` API endpoint for lab metrics metadata grouped by clinical category.
 - Backend `/labs/{person_id}/all-series` API endpoint consolidating all lab metric series from `analytics.mv_labs_all` view.
@@ -27,6 +32,7 @@
 
 ### Testing
 - Adjusted event page and other UI integration tests to reflect current static content and component presence.
+- Docs CI: validates docs/index.md, catalogs/registries, runs link checker, and enforces change fragments.
 
 #### Details (imported from CHANGE_LOG.md)
 - Historical notes and investigation logs have been consolidated here from the deprecated CHANGE_LOG.md. See below for the full imported text.

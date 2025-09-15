@@ -96,7 +96,23 @@
     return response.json();
   }
 
-  async function fetchLabMetadata(personId){
+  async function fetchJSON(url, opts = {}) {
+  const controller = new AbortController();
+  const timeoutMs = opts.timeoutMs ?? 15000;
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      throw new Error(`${url} ${r.status} ${text}`.trim());
+    }
+    return await r.json();
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchLabMetadata(personId){
     const baseUrl = `/labs/${encodeURIComponent(personId)}/labs-metadata`;
     const response = await fetch(baseUrl, { cache: 'no-store' });
     if(!response.ok) throw new Error('Failed to load labs metadata');
@@ -254,22 +270,23 @@
 
   async function loadAndRender() {
   const [seriesRes, metaRes] = await Promise.allSettled([
-    fetchJSON(`/labs/me/all-series`),
-    fetchLabMetadata()
+    fetchJSON('/labs/me/all-series'),
+    fetchJSON('/labs/me/labs-metadata')
   ]);
-  if (seriesRes.status !== "fulfilled") {
-    console.error("Error loading shared labs series:", seriesRes.reason);
-    showError("Could not load lab series. Please retry.");
+  if (seriesRes.status !== 'fulfilled') {
+    console.error('Error loading shared labs series:', seriesRes.reason);
+    if (typeof showError === 'function') showError('Could not load lab series. Please retry.');
     return;
   }
   const series = seriesRes.value;
-  const meta = metaRes.status === "fulfilled" ? metaRes.value : {};
-  if (metaRes.status !== "fulfilled") {
-    console.warn("Labs metadata unavailable, rendering without it:", metaRes.reason);
+  const meta = metaRes.status === 'fulfilled' ? metaRes.value : {};
+  if (metaRes.status !== 'fulfilled') {
+    console.warn('Labs metadata unavailable, rendering without it:', metaRes.reason);
   }
   try { renderGraphs(series, meta); }
-  catch (e) { console.error("Render error:", e); showError("Unable to render lab graphs."); }
-});
+  catch (e) { console.error('Render error:', e); if (typeof showError === 'function') showError('Unable to render lab graphs.'); }
+}
+);
 
       console.log('Labs Metadata filtered:', filteredMetadata);
 
@@ -282,7 +299,13 @@
     }
   }
 
-  function boot() {
+  function showError(msg) {
+  const el = document.querySelector('#labs-shared-error');
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+  else { console.error(msg); }
+}
+
+function boot() {
     document.querySelectorAll(SEL).forEach(el => loadAndRender(el));
   }
 

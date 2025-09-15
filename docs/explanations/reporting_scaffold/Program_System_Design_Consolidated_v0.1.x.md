@@ -2,4 +2,4 @@
 
 Contracts-first; versioned schemas; parallel lanes.
 
-Moved to docs/explanations/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md
+[Relocated from docs/reporting_scaffold/Program_System_Design_Consolidated_v0.1.x.md]

@@ -7,7 +7,7 @@ Policy
 
 How To
 - Backup now:
-  - See scripts/cron/backup.sh and docs/architecture/Runbooks/Backup_Restore.md (legacy note)
+  - See scripts/cron/backup.sh
 - Restore:
   - Provision target Postgres of compatible major version.
   - Restore weekly base, then apply daily logical backups if needed.
@@ -16,3 +16,9 @@ How To
 
 Verification
 - After restore, run: scripts/db/verify_counts.sql and UI smoke tests.
+
+Details
+- Daily at ~02:08 via cron (scripts/cron/nightly.sh triggers backup.sh)
+- Keeps 14 most recent dumps at `/mnt/nas_storage/backups/health`
+- Manual run: `bash scripts/cron/backup.sh`
+- Restore example: `psql -h localhost -p 55432 -U health -d health -f /path/to/health_YYYY-MM-DD.sql`

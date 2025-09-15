@@ -1,7 +1,7 @@
-.PHONY: help venv fmt lint test up down verify psql import-apple mirror-fhir dump
+.PHONY: help venv fmt lint test up down verify psql import-apple mirror-fhir dump docs
 
 help:
-	@echo "Targets: up, down, verify, psql, import-apple ZIP=..., mirror-fhir, dump"
+	@echo "Targets: up, down, verify, psql, import-apple ZIP=..., mirror-fhir, dump, docs"
 
 venv:
 	python3 -m venv .venv && . .venv/bin/activate && pip install -U pip
@@ -26,6 +26,16 @@ mirror-fhir:
 
 dump:
 	docker exec -t healthdb pg_dump -U health -d health > /mnt/nas_storage/backups/health_$(shell date +%F).sql
+
+docs:
+	python scripts/docs/reindex_docs.py
+	python scripts/docs/build_catalog.py
+	python scripts/docs/build_adr_index.py
+	python scripts/docs/build_contracts_registry.py
+	python scripts/docs/build_code_map.py
+	python scripts/docs/build_glossary_synonyms.py
+	python scripts/docs/staleness_report.py
+	python scripts/docs/link_check.py
 
 ai-scan:
 	. .venv/bin/activate && python jobs/ai_daily_scan.py --dsn "$(HP_DSN)"
