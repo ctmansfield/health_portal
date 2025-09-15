@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Shared Labs — Health Portal{% endblock %}
+{% block content %}
+  <div class="hp-labs-shared hp-labs-panel" data-person-id="{{ person_id }}">
+    <h1 style="color:#2563eb;">Shared Labs for {{ person_id }}</h1>
+    <div class="hp-labs-controls"></div>
+    <div class="hp-labs-body"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="/static/js/labs_overlays.js" defer></script>
+  <script src="/static/js/labs_shared.js" defer></script>
+  <script src="/static/js/labs_shared_v2.js" defer></script>
+{% endblock %}

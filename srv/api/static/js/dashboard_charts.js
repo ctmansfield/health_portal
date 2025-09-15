@@ -98,7 +98,10 @@
         const medEvents = await fetchMedications(window.personId);
         // Merge test events with fetched events
         const mergedEvents = [...medEvents, ...TEST_MED_EVENTS];
-        await addMedOverlaysToAllCharts(mergedEvents);
+
+        // Filter valid med events
+        const validMedEvents = mergedEvents.filter(e => e && typeof e.time === 'string' && typeof e.label === 'string');
+        await addMedOverlaysToAllCharts(validMedEvents);
       } catch(e) {
         console.warn('Failed to load medication overlays', e);
       }
@@ -124,4 +127,3 @@
   document.addEventListener('DOMContentLoaded', function(){ waitForChart(function(){ initChartsOnce(); window.addEventListener('resize', onResize); window.addEventListener('orientationchange', onResize); }); });
 
 })();
-

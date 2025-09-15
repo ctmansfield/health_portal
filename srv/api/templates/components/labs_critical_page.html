@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Critical Labs — Health Portal{% endblock %}
+{% block content %}
+<div class="hp-labs-critical hp-labs-panel" data-person-id="{{ person_id }}">
+  <h1 style="color:#2563eb;">Critical Labs for {{ person_id }}</h1>
+  <div class="hp-labs-controls"></div>
+  <div class="hp-labs-body"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/labs_overlays.js" defer></script>
+<script src="/static/js/labs_shared.js" defer></script>
+<script src="/static/js/labs_critical_v2.js" defer></script>
+{% endblock %}

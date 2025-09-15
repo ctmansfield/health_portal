@@ -1,51 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Events — Health Portal{% endblock %}
 {% block content %}
-  {% include "includes/header.html" %}
   <main class="container" style="margin-top:16px;">
     <h1 style="color:#2563eb;">Events</h1>
+    <h2>Recent Events</h2>
     <div id="eventsRoot">Loading events ...</div>
     <script src="/static/js/dashboard_events.js" defer></script>
   </main>
 {% endblock %}
-INFO:     192.168.1.219:64156 - "GET /ui/people/me/labs/critical?preview=1 HTTP/1.1" 200 OK
-Critical series query returned 117 rows for person_id=me
-INFO:     192.168.1.219:64156 - "GET /labs/me/critical-series?metrics=hr%2Cspo2 HTTP/1.1" 200 OK
-medications_events error for me: relation "medications.events" does not exist
-LINE 3:                 FROM medications.events
-                             ^
-INFO:     192.168.1.219:64156 - "GET /medications/me/events HTTP/1.1" 200 OK
-INFO:     192.168.1.219:64156 - "GET /events HTTP/1.1" 404 Not Found
-INFO:     192.168.1.219:64156 - "GET /dashboard HTTP/1.1" 200 OK
-INFO:     192.168.1.219:64156 - "GET /genomics HTTP/1.1" 200 OK
-medications_events error for me: relation "medications.events" does not exist
-LINE 3:                 FROM medications.events
-                             ^
-INFO:     192.168.1.219:64156 - "GET /medications/me/events HTTP/1.1" 200 OK
-INFO:     192.168.1.219:64156 - "GET /ui/people/me/labs/liver HTTP/1.1" 200 OK
-Liver series query returned 12 rows for person_id=me
-INFO:     192.168.1.219:64156 - "GET /labs/me/liver-series?metrics=alt%2Cast%2Calp%2Cggt%2Cbili_total%2Cbili_direct%2Calbumin HTTP/1.1" 200 OK
-medications_events error for me: relation "medications.events" does not exist
-LINE 3:                 FROM medications.events
-                             ^
-INFO:     192.168.1.219:64156 - "GET /medications/me/events HTTP/1.1" 200 OK
-INFO:     192.168.1.219:51555 - "GET /dashboard HTTP/1.1" 200 OK
-INFO:     192.168.1.219:51555 - "GET /ui/people/me/labs/critical HTTP/1.1" 200 OK
-Critical series query returned 117 rows for person_id=me
-INFO:     192.168.1.219:51555 - "GET /labs/me/critical-series?metrics=hr%2Cspo2 HTTP/1.1" 200 OK
-medications_events error for me: relation "medications.events" does not exist
-LINE 3:                 FROM medications.events
-                             ^
-INFO:     192.168.1.219:51555 - "GET /medications/me/events HTTP/1.1" 200 OK
-INFO:     192.168.1.219:51555 - "GET /events HTTP/1.1" 404 Not Found
-INFO:     192.168.1.219:51555 - "GET /ui HTTP/1.1" 200 OK
-INFO:     192.168.1.219:51555 - "GET /dashboard/events HTTP/1.1" 200 OK
-INFO:     192.168.1.219:51555 - "GET /static/js/dashboard_events.js HTTP/1.1" 404 Not Found
-INFO:     192.168.1.219:52910 - "GET /ui HTTP/1.1" 200 OK
-INFO:     192.168.1.219:52910 - "GET /ui/people/me/labs/liver HTTP/1.1" 200 OK
-Liver series query returned 12 rows for person_id=me
-INFO:     192.168.1.219:52910 - "GET /labs/me/liver-series?metrics=alt%2Cast%2Calp%2Cggt%2Cbili_total%2Cbili_direct%2Calbumin HTTP/1.1" 200 OK
-medications_events error for me: relation "medications.events" does not exist
-LINE 3:                 FROM medications.events
-                             ^
-INFO:     192.168.1.219:52910 - "GET /medications/me/events HTTP/1.1" 200 OK

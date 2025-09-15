@@ -3,7 +3,7 @@
 
   // Import shared utils
   const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeCheckbox, makeDateSelect} = window.hpLabsShared;
-  const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
+  const { fetchMedications } = window.hpLabsOverlays;
 
   const SEL = '.hp-labs-liver';
 
@@ -72,7 +72,9 @@
 
     controls.addEventListener('change', e => {
       if(e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
-        renderCharts(el, _liverMedEvents);
+        const medToggle = $('#medication-overlay-toggle-liver');
+        const showMedOverlay = medToggle ? medToggle.checked : true;
+        renderCharts(el, showMedOverlay ? _liverMedEvents : []);
       } else if(e.target.tagName === 'SELECT') {
         const start = $('#liver_start_date').value;
         const end = $('#liver_end_date').value;
@@ -89,8 +91,50 @@
     });
   }
 
-  function renderCharts(el, medEvents=[]) {
-    if(!_dataCache) return;
+  // Helper to create medication overlay plugin with color and label
+  function makeMedOverlayPlugin(medEvents, options = {}) {
+    // Map medication name patterns to colors
+    const defaultColor = 'rgba(244,63,94,0.4)'; // default light red transparent
+    const colors = {
+      testosterone: 'rgba(74,222,128,0.4)', // light green transparent
+      lisinopril: 'rgba(244,63,94,0.4)', // light red transparent
+    };
+
+    return {
+      id: 'medOverlay',
+      medEvents,
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        medEvents.forEach(event => {
+          if (!event.time) return;
+          const xScale = chart.scales.x;
+          const x = xScale.getPixelForValue(event.time);
+          ctx.save();
+          // Choose color based on med name matching
+          let color = defaultColor;
+          const labelLower = (event.label || '').toLowerCase();
+          if(labelLower.includes('testosterone')) color = colors.testosterone;
+          else if(labelLower.includes('lisinopril')) color = colors.lisinopril;
+
+          ctx.strokeStyle = color.replace(/,0\.4\)/, ',0.8)'); // darker stroke
+          ctx.fillStyle = color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, yAxis.top);
+          ctx.lineTo(x, yAxis.bottom);
+          ctx.stroke();
+          ctx.font = '10px Arial';
+          ctx.fillText(event.label || '', x + 4, yAxis.top + 10);
+          ctx.restore();
+        });
+      }
+    };
+  }
+
+  function renderCharts(el, medEvents = []) {
+    if (!_dataCache) return;
+
     const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'))
       .map(cb => cb.value);
     const body = $('.hp-labs-body', el);
@@ -101,9 +145,9 @@
 
     _dataCache.forEach(metricData => {
       const m = metricData.metric;
-      if(!datasetsMap[m]) return;
+      if (!datasetsMap[m]) return;
       metricData.series.forEach(point => {
-        datasetsMap[m].push({x: point.t_utc, y: point.v});
+        datasetsMap[m].push({ x: point.t_utc, y: point.v });
       });
     });
 
@@ -123,26 +167,52 @@
       pointRadius: 2
     }));
 
-    if(window._labsLiverChartInstance) window._labsLiverChartInstance.destroy();
+    if (window._labsLiverChartInstance) window._labsLiverChartInstance.destroy();
+
+    const plugins = [];
+    if (medEvents.length > 0) {
+      plugins.push(makeMedOverlayPlugin(medEvents, { color: '#f43f5e', label: 'Medications' }));
+    }
 
     window._labsLiverChartInstance = new Chart(ctx, {
       type: 'line',
-      data: {datasets: datasets},
+      data: { datasets },
       options: {
         responsive: true,
-        parsing: {xAxisKey: 'x', yAxisKey: 'y'},
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         scales: {
-          x: {type: 'time', time: {unit: 'day'}, title: {display:true, text:'Date'}},
-          y: {title: {display:true, text:'Value'}}
+          x: { type: 'time', time: { unit: 'day' }, title: { display: true, text: 'Date' } },
+          y: { title: { display: true, text: 'Value' } }
         },
-        plugins: {legend: {display: true}}
-      }
+        plugins: { legend: { display: true } }
+      },
+      plugins // Chart.js v3+ allows plugins array here
+    });
+  }
+
+  function createMedToggle(el, initialState = true) {
+    const container = $('.hp-labs-controls', el);
+    if (!container) return;
+    const toggleLabel = document.createElement('label');
+    toggleLabel.style.marginTop = '8px';
+    toggleLabel.style.cursor = 'pointer';
+
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = initialState;
+    toggle.style.marginRight = '6px';
+    toggle.id = 'medication-overlay-toggle-liver';
+
+    toggleLabel.appendChild(toggle);
+    toggleLabel.appendChild(document.createTextNode('Show Medication Overlays'));
+
+    container.appendChild(toggleLabel);
+
+    toggle.addEventListener('change', () => {
+      renderCharts(el, toggle.checked ? _liverMedEvents : []);
     });
 
-    // Add medication overlays if any
-    if(medEvents && medEvents.length > 0){
-      addMedicationOverlays(window._labsLiverChartInstance, medEvents, { color:'#f43f5e', label:'Medications' });
-    }
+    return toggle;
   }
 
   async function loadAndRender(el, startDate, endDate) {
@@ -158,6 +228,9 @@
 
       setupUI(el, Object.keys(METRIC_LABELS), metrics);
       renderCharts(el, _liverMedEvents);
+
+      // Add medication overlay toggle
+      createMedToggle(el, true);
     } catch (e) {
       console.warn('Error loading liver panel:', e);
     }

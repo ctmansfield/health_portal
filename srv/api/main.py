@@ -7,6 +7,7 @@ from . import dashboard, dashboard_events, genomics
 from .v1 import __init__ as v1pkg
 from .reports import router as reports_router
 
+
 app = FastAPI()
 
 # Mount static files (single mount)
@@ -29,10 +30,12 @@ try:
 except Exception:
     pass
 
+
 # favicon route
 @app.get("/favicon.ico")
 async def favicon():
     return FileResponse("srv/api/static/favicon.ico")
+
 
 # healthz
 @app.get("/healthz")
@@ -43,6 +46,7 @@ def healthz():
 # optional labs router
 try:
     from .labs_api import router as labs_router
+
     app.include_router(labs_router)
 except Exception:
     pass
@@ -50,6 +54,7 @@ except Exception:
 # optional records router
 try:
     from .records_api import router as records_router
+
     app.include_router(records_router)
 except Exception:
     pass

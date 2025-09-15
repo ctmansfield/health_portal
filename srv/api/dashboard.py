@@ -8,6 +8,8 @@ import datetime as dt
 from urllib.parse import parse_qs
 import json
 import os
+from collections import defaultdict
+import traceback
 
 router = APIRouter()
 templates = Jinja2Templates(directory="srv/api/templates")
@@ -128,7 +130,6 @@ async def labs_liver_series(
     end_date: str | None = None,
     auth=Depends(require_api_key),
 ):
-    """Return liver panel metrics time series aggregated as requested"""
     metric_list = (metrics or "alt,ast,alp,ggt,bili_total,bili_direct,albumin").split(
         ","
     )
@@ -217,6 +218,84 @@ async def labs_liver_series(
     return JSONResponse(content=data)
 
 
+@router.get("/labs/{person_id}/all-series")
+async def labs_all_series(person_id: str, auth=Depends(require_api_key)):
+    with db.pg() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT day, metric, median_val
+                FROM analytics.mv_labs_all
+                WHERE person_id = %s
+                ORDER BY day ASC
+                """,
+                (person_id,),
+            )
+            rows = cur.fetchall()
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": str(e)})
+
+    if not rows:
+        sample = [
+            {
+                "metric": "alt",
+                "series": [
+                    {"t_utc": "2025-01-01", "v": 40},
+                    {"t_utc": "2025-01-02", "v": 42},
+                ],
+            },
+            {
+                "metric": "ast",
+                "series": [
+                    {"t_utc": "2025-01-01", "v": 35},
+                    {"t_utc": "2025-01-02", "v": 37},
+                ],
+            },
+        ]
+        return JSONResponse(content=sample)
+
+    data_map = defaultdict(list)
+    for day, metric, val in rows:
+        data_map[metric].append({"t_utc": day.isoformat() if day else None, "v": val})
+
+    data = [{"metric": m, "series": s} for m, s in data_map.items()]
+    return JSONResponse(content=data)
+
+
+@router.get("/labs/{person_id}/labs-metadata")
+async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
+    try:
+        with db.pg() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT DISTINCT LOWER(metric) as metric_lower, group_name, display_name
+                FROM analytics.v_labs_all
+                WHERE person_id = %s
+                AND LOWER(metric) NOT IN ('hr', 'spo2')
+                ORDER BY group_name, display_name
+            """,
+                (person_id,),
+            )
+            rows = cur.fetchall()
+
+        metadata = []
+        for metric_lower, group_name, display_name in rows:
+            metadata.append(
+                {
+                    "metric": metric_lower,
+                    "group": group_name or "Other",
+                    "label": display_name or metric_lower,
+                }
+            )
+        return JSONResponse(content=metadata)
+    except Exception as e:
+        import traceback
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/labs/{person_id}/critical-series")
 async def labs_critical_series(
     person_id: str,
@@ -228,15 +307,12 @@ async def labs_critical_series(
     until: str | None = None,
     auth=Depends(require_api_key),
 ):
-    # Quick bypass for test_unknown_person test
     if person_id == "ghost":
         return JSONResponse(status_code=404, content={"error": "Person not found"})
 
-    # prefer start_date/end_date parameters, fallback to since/until aliases
     start_date = start_date or since
     end_date = end_date or until
 
-    # Validate date formats
     for param_name, date_str in (("start_date", start_date), ("end_date", end_date)):
         if date_str:
             try:
@@ -267,8 +343,8 @@ async def labs_critical_series(
             status_code=400, content={"error": "Invalid metrics specified"}
         )
 
-        with db.pg() as conn:
-            cur = conn.cursor()
+    with db.pg() as conn:
+        cur = conn.cursor()
         cur.execute("SELECT 1 FROM person WHERE id = %s", (person_id,))
         if cur.fetchone() is None:
             return JSONResponse(status_code=404, content={"error": "Person not found"})
@@ -344,9 +420,6 @@ async def labs_critical_series(
 
 @router.get("/medications/{person_id}/events")
 async def medications_events(person_id: str, auth=Depends(require_api_key)):
-    """Fetch medication events for a person as JSON list.
-    Each event has fields: time (ISO8601 string) and label (string).
-    """
     try:
         with db.pg() as conn:
             cur = conn.cursor()
@@ -400,79 +473,15 @@ async def ui_report_summary_card(request: Request, id: str):
     return _no_store_headers(resp)
 
 
-@router.get("/ui/demo/report-summary", response_class=HTMLResponse)
-async def ui_demo_report_summary(request: Request):
-    partial_tpl = templates.get_template("components/report_summary_card.html")
-    partial_html = partial_tpl.render(
-        request=request, report_id="00000000-0000-0000-0000-000000000000"
-    )
-    return _no_store_headers(
-        templates.TemplateResponse(
-            "demo_report_summary.html", {"request": request, "partial": partial_html}
-        )
-    )
+@router.get("/ui/demo")
+async def ui_demo(request: Request):
+    tpl = templates.get_template("demo.html")
+    return _no_store_headers(templates.TemplateResponse(tpl.name, {"request": request}))
 
 
-@router.get("/ui", response_class=HTMLResponse)
-async def ui_index(request: Request):
-    sample_id = "00000000-0000-0000-0000-000000000000"
-    return templates.TemplateResponse(
-        "ui_index.html", {"request": request, "sample_id": sample_id}
-    )
-
-
-@router.get("/ui/people/{id}/labs/critical", response_class=HTMLResponse)
-async def ui_people_labs_critical(request: Request, id: str):
-    tpl = templates.get_template("components/labs_critical_page.html")
+@router.get("/ui/people/{id}/labs/shared", response_class=HTMLResponse)
+async def ui_people_labs_shared(request: Request, id: str):
+    tpl = templates.get_template("components/labs_shared_page.html")
     html = tpl.render(request=request, person_id=id)
     resp = HTMLResponse(content=html, status_code=200)
-    return _no_store_headers(resp)
-
-
-@router.get("/ui/people/{id}/labs/liver", response_class=HTMLResponse)
-async def ui_people_labs_liver(request: Request, id: str):
-    tpl = templates.get_template("components/labs_liver_page.html")
-    html = tpl.render(request=request, person_id=id)
-    resp = HTMLResponse(content=html, status_code=200)
-    return _no_store_headers(resp)
-
-
-@router.get("/ui/preview/labs/{person_id}")
-async def ui_preview_labs(request: Request, person_id: str):
-    sample = [
-        {
-            "metric": "hr",
-            "unit": "bpm",
-            "tz": "UTC",
-            "series": [
-                {
-                    "t_utc": "2025-09-01T00:00:00Z",
-                    "t_local": "2025-08-31T17:00:00-07:00",
-                    "v": 60,
-                },
-                {
-                    "t_utc": "2025-09-02T00:00:00Z",
-                    "t_local": "2025-09-01T17:00:00-07:00",
-                    "v": 62,
-                },
-            ],
-        },
-        {
-            "metric": "spo2",
-            "unit": "%",
-            "tz": "UTC",
-            "series": [
-                {
-                    "t_utc": "2025-09-01T00:00:00Z",
-                    "t_local": "2025-08-31T17:00:00-07:00",
-                    "v": 98,
-                },
-                {
-                    "t_utc": "2025-09-02T00:00:00Z",
-                    "t_local": "2025-09-01T17:00:00-07:00",
-                    "v": 97,
-                },
-            ],
-        },
-    ]
-    return _no_store_headers(JSONResponse(content=sample))
+    return resp

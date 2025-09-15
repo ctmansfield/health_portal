@@ -17,18 +17,18 @@
   }
 
   // Function to add medication overlays to Chart.js chart
-  function addMedicationOverlays(chart, medEvents, options={}) {
-    if(!chart || !Array.isArray(medEvents)) return;
-    const { color='red', label='Medications' } = options;
+  function addMedicationOverlays(chart, medEvents, options = {}) {
+    if (!chart || !Array.isArray(medEvents)) return;
+    const { color = 'red', label = 'Medications' } = options;
 
-    // Assuming medEvents is an array of objects with 'time' and 'label' properties
-    // Render vertical lines or shaded regions to indicate medication times
+    // Defensive: do not set plugins directly; check if plugins array is accessible
+    if (!Array.isArray(chart.config.plugins)) {
+      console.warn('Chart.js plugins array unavailable, skipping adding medication overlays');
+      return;
+    }
 
-    // You will need to integrate a Chart.js plugin or annotation library for better overlays.
-    // For now, we can put vertical lines on the x-axis for each medication event.
-
-    // Clear previous overlay plugin if any
-    if(chart._medOverlayPlugin) {
+    // Check if overlay plugin already exists
+    if (chart._medOverlayPlugin) {
       chart._medOverlayPlugin.medEvents = medEvents;
       chart.update();
       return;
@@ -37,10 +37,12 @@
     const overlayPlugin = {
       id: 'medOverlay',
       medEvents,
-      afterDraw(chart){
+      afterDraw(chart) {
         const ctx = chart.ctx;
         const yAxis = chart.scales.y;
-        chart._medOverlayPlugin.medEvents.forEach(event => {
+        if (!chart._medOverlayPlugin.medEvents) return;
+        chart._medOverlayPlugin.medEvents.forEach((event) => {
+          if (!event.time) return; // defensive
           const xScale = chart.scales.x;
           const x = xScale.getPixelForValue(event.time);
           ctx.save();
@@ -52,11 +54,12 @@
           ctx.stroke();
           ctx.fillStyle = color;
           ctx.font = '10px Arial';
-          ctx.fillText(event.label || '', x + 4, yAxis.top + 10);
+          const label = event.label || '';
+          ctx.fillText(label, x + 4, yAxis.top + 10);
           ctx.restore();
         });
-      }
-    };
+      },
+  };
 
     chart._medOverlayPlugin = overlayPlugin;
     chart.config.plugins.push(overlayPlugin);

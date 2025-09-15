@@ -5,7 +5,7 @@
   const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeCheckbox, makeDateSelect } = window.hpLabsShared;
 
   // After shared utils import, import overlays
-  const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
+  const { fetchMedications } = window.hpLabsOverlays;
 
   const SEL = '.hp-labs-critical';
 
@@ -83,8 +83,9 @@
     controls.appendChild(dateRangeContainer);
 
     controls.addEventListener('change', e => {
-      if(e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
-        renderCharts(el);
+      if(e.target.tagName === 'INPUT' && e.target.type === 'checkbox' && e.target.id !== 'medication-overlay-toggle') {
+        const medToggle = $('#medication-overlay-toggle', el);
+        renderCharts(el, medToggle && medToggle.checked ? _criticalMedEvents : []);
       } else if(e.target.tagName === 'SELECT') {
         const start = $('#critical_start_date').value;
         const end = $('#critical_end_date').value;
@@ -101,10 +102,38 @@
     });
   }
 
-  function renderCharts(el, medEvents=[]) {
-    if(!_dataCache) return;
-    const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'))
-      .map(cb => cb.value);
+  function makeMedOverlayPlugin(medEvents, options = {}) {
+    const { color = '#4ade80', label = 'Medications' } = options;
+
+    return {
+      id: 'medOverlay',
+      medEvents,
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        medEvents.forEach(event => {
+          if (!event.time) return;
+          const xScale = chart.scales.x;
+          const x = xScale.getPixelForValue(event.time);
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, yAxis.top);
+          ctx.lineTo(x, yAxis.bottom);
+          ctx.stroke();
+          ctx.fillStyle = color;
+          ctx.font = '10px Arial';
+          ctx.fillText(event.label||'', x + 4, yAxis.top + 10);
+          ctx.restore();
+        });
+      }
+    };
+  }
+
+  function renderCharts(el, medEvents = []) {
+    if (!_dataCache) return;
+    const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked')).filter(cb => cb.id !== 'medication-overlay-toggle').map(cb => cb.value);
     const body = $('.hp-labs-body', el);
     body.innerHTML = '';
 
@@ -113,9 +142,9 @@
 
     _dataCache.forEach(metricData => {
       const m = metricData.metric;
-      if(!datasetsMap[m]) return;
+      if (!datasetsMap[m]) return;
       metricData.series.forEach(point => {
-        datasetsMap[m].push({x: point.t_utc, y: point.v});
+        datasetsMap[m].push({ x: point.t_utc, y: point.v });
       });
     });
 
@@ -135,25 +164,53 @@
       pointRadius: 2
     }));
 
-    if(window._labsCriticalChartInstance) window._labsCriticalChartInstance.destroy();
+    if (window._labsCriticalChartInstance) window._labsCriticalChartInstance.destroy();
+
+    const plugins = [];
+    if (medEvents.length > 0) {
+      plugins.push(makeMedOverlayPlugin(medEvents, { color: '#4ade80', label: 'Medications' }));
+    }
 
     window._labsCriticalChartInstance = new Chart(ctx, {
       type: 'line',
-      data: {datasets: datasets},
+      data: { datasets },
       options: {
         responsive: true,
-        parsing: {xAxisKey: 'x', yAxisKey: 'y'},
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         scales: {
-          x: {type: 'time', time: {unit: 'day'}, title: {display:true, text:'Date'}},
-          y: {title: {display:true, text:'Value'}}
+          x: { type: 'time', time: { unit: 'day' }, title: { display: true, text: 'Date' } },
+          y: { title: { display: true, text: 'Value' } }
         },
-        plugins: {legend: {display: true}}
-      }
+        plugins: { legend: { display: true } },
+        plugins // inject medication overlay plugin
+      },
+      plugins
+    });
+  }
+
+  function createMedToggle(el, initialState = true) {
+    const container = $('.hp-labs-controls', el);
+    if (!container) return;
+    const toggleLabel = document.createElement('label');
+    toggleLabel.style.marginTop = '8px';
+    toggleLabel.style.cursor = 'pointer';
+
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = initialState;
+    toggle.style.marginRight = '6px';
+    toggle.id = 'medication-overlay-toggle';
+
+    toggleLabel.appendChild(toggle);
+    toggleLabel.appendChild(document.createTextNode('Show Medication Overlays'));
+
+    container.appendChild(toggleLabel);
+
+    toggle.addEventListener('change', () => {
+      renderCharts(el, toggle.checked ? _criticalMedEvents : []);
     });
 
-    if(medEvents && medEvents.length > 0) {
-      addMedicationOverlays(window._labsCriticalChartInstance, medEvents, { color:'#4ade80', label:'Medications' });
-    }
+    return toggle;
   }
 
   async function loadAndRender(el, startDate, endDate) {
@@ -165,8 +222,6 @@
       _dataCache = data;
 
       const medEvents = await fetchMedications(_personId);
-
-      // Merge test events with fetched events
       const mergedEvents = [...medEvents, ...TEST_MED_EVENTS];
 
       // Filter valid med events
@@ -174,7 +229,12 @@
       _criticalMedEvents = validMedEvents;
 
       setupUI(el, Object.keys(METRIC_LABELS), metrics);
-      renderCharts(el, _criticalMedEvents);
+
+      renderCharts(el, validMedEvents);
+
+      // Create medication overlay toggle
+      createMedToggle(el, true);
+
     } catch (e) {
       console.warn('Error loading critical panel:', e);
     }
@@ -189,4 +249,3 @@
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
-
