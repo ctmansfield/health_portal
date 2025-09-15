@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-import argparse, os, csv, json, zipfile, datetime as dt
+import argparse
+import os
+import csv
+import json
+import zipfile
+import datetime as dt
 from io import StringIO
 from hp_etl.db import pg, dsn_from_env
 

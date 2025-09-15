@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from . import dashboard, dashboard_events, genomics
-from .v1 import __init__ as v1pkg
 from .reports import router as reports_router
 
 

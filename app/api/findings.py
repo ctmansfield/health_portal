@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Query
 from hp_etl.db import pg, dsn_from_env
-from hp_etl.exporters import to_ndjson
 import os
-from io import StringIO
 
 router = APIRouter(prefix="/findings", tags=["findings"])
 

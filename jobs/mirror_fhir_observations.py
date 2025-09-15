@@ -3,7 +3,9 @@
 Mirror FHIR Observation resources in fhir_raw.resources into analytics.data_events.
 Idempotent; can run daily. Only processes Observations newer than state 'mirror_fhir_obs_last'.
 """
-import argparse, json, datetime as dt
+
+import argparse
+import json
 from hp_etl.db import pg
 from hp_etl.events import bulk_insert
 from hp_etl.state import get_state, set_state

@@ -19,7 +19,7 @@ def main():
         if CATALOG.exists()
         else {"documents": []}
     )
-    doc_index = {d["path"]: d for d in catalog.get("documents", [])}
+    _doc_index = {d["path"]: d for d in catalog.get("documents", [])}
 
     for code_path, doc_path in code_map.items():
         code_abs = ROOT / code_path

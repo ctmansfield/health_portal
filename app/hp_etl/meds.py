@@ -75,7 +75,8 @@ def score_adherence(
     scores = []
 
     for dose in sorted_exp:
-        due_dt = parse_isoz(dose.due_at)
+        # due_dt not used directly; keep for readability
+        _due_dt = parse_isoz(dose.due_at)
         window_end_dt = parse_isoz(dose.window_end)
         matched_ev = None
 

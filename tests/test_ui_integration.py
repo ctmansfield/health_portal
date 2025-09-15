@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 import datetime as dt
-import os
 from srv.api.main import app
 
 client = TestClient(app)

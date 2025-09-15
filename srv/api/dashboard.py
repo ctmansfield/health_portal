@@ -1,15 +1,19 @@
+import logging
+from collections import defaultdict
+import os
+import traceback
+from urllib.parse import parse_qs
+import datetime as dt
+
 from fastapi import Request, APIRouter, Depends
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
+from fastapi.templating import Jinja2Templates
+
 import app.hp_etl.db as db
 from app.hp_etl.cache import get as cache_get, set as cache_set
 from .auth import require_api_key
-import datetime as dt
-from urllib.parse import parse_qs
-import json
-import os
-from collections import defaultdict
-import traceback
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="srv/api/templates")
@@ -29,21 +33,28 @@ def login_get(request: Request, error: str | None = None):
 @router.post("/login")
 async def login_post(request: Request):
     api_key = None
+    # Try form first
     try:
         form = await request.form()
         api_key = form.get("api_key")
     except Exception:
+        pass
+    # Try JSON body
+    if not api_key:
         try:
             body_json = await request.json()
             if isinstance(body_json, dict):
                 api_key = body_json.get("api_key")
         except Exception:
-            try:
-                body = (await request.body()).decode()
-                parsed = parse_qs(body)
-                api_key = parsed.get("api_key", [None])[0]
-            except Exception:
-                api_key = None
+            pass
+    # Try raw body (x-www-form-urlencoded)
+    if not api_key:
+        try:
+            body = (await request.body()).decode()
+            parsed = parse_qs(body)
+            api_key = parsed.get("api_key", [None])[0]
+        except Exception:
+            api_key = None
 
     hp_key = os.environ.get("HP_API_KEY")
     if not hp_key:
@@ -134,6 +145,7 @@ async def labs_liver_series(
         ","
     )
     metric_list = [m.strip().lower() for m in metric_list if m.strip()]
+
     valid_metrics = {
         "alt": "alt_p50",
         "ast": "ast_p50",
@@ -161,21 +173,27 @@ async def labs_liver_series(
     where_sql = " AND ".join(where_clauses)
 
     sql = f"""
-    SELECT day, {', '.join(selected_metrics.values())}
+    SELECT day, {", ".join(selected_metrics.values())}
     FROM analytics.mv_liver_daily
     WHERE {where_sql}
     ORDER BY day ASC
     """
-    with db.pg() as conn:
-        cur = conn.cursor()
-        try:
+
+    try:
+        with db.pg() as conn:
+            cur = conn.cursor()
             cur.execute(sql, params)
             rows = cur.fetchall()
-            print(
-                f"Liver series query returned {len(rows)} rows for person_id={person_id}"
+            logger.debug(
+                "Liver series query returned %d rows for person_id=%s",
+                len(rows),
+                person_id,
             )
-        except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "labs_metadata_failed", "detail": str(e)[:2000]},
+        )
 
     if not rows:
         demo_data = [
@@ -200,21 +218,20 @@ async def labs_liver_series(
                 ],
             },
         ]
-        return JSONResponse(content=demo_data)
+    return JSONResponse(content=demo_data)
 
-    data = []
     metrics_map = {
         m: {"metric": m, "unit": "", "tz": "UTC", "series": []}
         for m in selected_metrics.keys()
     }
     for row in rows:
         day = row[0]
-        for idx, m in enumerate(selected_metrics.keys()):
+        for idx, m in enumerate(list(selected_metrics.keys())):
             val = row[idx + 1]
             if val is not None:
                 metrics_map[m]["series"].append({"t_utc": day.isoformat(), "v": val})
-    data = list(metrics_map.values())
 
+    data = list(metrics_map.values())
     return JSONResponse(content=data)
 
 
@@ -234,7 +251,10 @@ async def labs_all_series(person_id: str, auth=Depends(require_api_key)):
             )
             rows = cur.fetchall()
         except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            return JSONResponse(
+                status_code=500,
+                content={"error": "labs_metadata_failed", "detail": str(e)[:2000]},
+            )
 
     if not rows:
         sample = [
@@ -268,17 +288,29 @@ async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
     try:
         with db.pg() as conn:
             cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT DISTINCT LOWER(metric) as metric_lower, group_name, display_name
-                FROM analytics.v_labs_all
-                WHERE person_id = %s
-                AND LOWER(metric) NOT IN ('hr', 'spo2')
-                ORDER BY group_name, display_name
-            """,
-                (person_id,),
-            )
-            rows = cur.fetchall()
+            try:
+                cur.execute(
+                    """
+                    SELECT DISTINCT LOWER(metric) as metric_lower, group_name, display_name
+                    FROM analytics.v_labs_all
+                    WHERE person_id = %s
+                    AND LOWER(metric) NOT IN ('hr', 'spo2')
+                    ORDER BY group_name, display_name
+                """,
+                    (person_id,),
+                )
+                rows = cur.fetchall()
+            except Exception:
+                # fallback: v_labs_all may not expose the same columns in all deployments
+                # fall back to mv_labs_all which contains metric + day + median_val
+                try:
+                    cur.execute(
+                        "SELECT DISTINCT LOWER(metric) as metric_lower FROM analytics.mv_labs_all WHERE person_id = %s",
+                        (person_id,),
+                    )
+                    rows = [(r[0], None, r[0]) for r in cur.fetchall()]
+                except Exception as e:
+                    raise e
 
         metadata = []
         for metric_lower, group_name, display_name in rows:
@@ -291,9 +323,11 @@ async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
             )
         return JSONResponse(content=metadata)
     except Exception as e:
-        import traceback
-    traceback.print_exc()
-    return JSONResponse(status_code=500, content={"error": str(e)})
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": "labs_metadata_failed", "detail": str(e)[:2000]},
+        )
 
 
 @router.get("/labs/{person_id}/critical-series")
@@ -345,6 +379,7 @@ async def labs_critical_series(
 
     with db.pg() as conn:
         cur = conn.cursor()
+        # Adjust table name as needed; keeping as-is from prior code
         cur.execute("SELECT 1 FROM person WHERE id = %s", (person_id,))
         if cur.fetchone() is None:
             return JSONResponse(status_code=404, content={"error": "Person not found"})
@@ -361,7 +396,7 @@ async def labs_critical_series(
     where_sql = " AND ".join(where_clauses)
     columns = [v for v in selected_metrics.values()]
     sql = f"""
-    SELECT day, {', '.join(columns)}
+    SELECT day, {", ".join(columns)}
     FROM analytics.mv_daily_vitals
     WHERE {where_sql}
     ORDER BY day ASC
@@ -376,7 +411,10 @@ async def labs_critical_series(
                 f"Critical series query returned {len(rows)} rows for person_id={person_id}"
             )
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(
+            status_code=500,
+            content={"error": "labs_metadata_failed", "detail": str(e)[:2000]},
+        )
 
     if not rows:
         demo_data = [
@@ -403,7 +441,6 @@ async def labs_critical_series(
         ]
         return JSONResponse(content=demo_data)
 
-    data = []
     metrics_map = {
         m: {"metric": m, "unit": "", "tz": "UTC", "series": []}
         for m in selected_metrics.keys()
@@ -445,10 +482,6 @@ async def medications_events(person_id: str, auth=Depends(require_api_key)):
     except Exception as e:
         print(f"medications_events error for {person_id}: {e}")
         return JSONResponse(content=[])
-
-
-from fastapi.responses import HTMLResponse, Response, JSONResponse
-from pathlib import Path
 
 
 def _no_store_headers(resp: Response) -> Response:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import argparse, json
+import argparse
+import json
 from hp_etl.db import pg, dsn_from_env
 
 UPSERT_SQL = """
@@ -43,7 +44,7 @@ def main():
              code IN ('8867-4','59408-5','29463-7','39156-5','85354-9','8480-6','8462-4')
             )
       ORDER BY last_updated
-      {('LIMIT %s' if args.limit else '')}
+      {("LIMIT %s" if args.limit else "")}
     """
     params = [args.limit] if args.limit else []
 

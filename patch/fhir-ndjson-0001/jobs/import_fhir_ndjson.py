@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import argparse, json, gzip
+import argparse
+import json
+import gzip
 from typing import IO
 from hp_etl.db import pg, dsn_from_env
 

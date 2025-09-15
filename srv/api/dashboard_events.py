@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 import app.hp_etl.db as db
 from srv.api.auth import require_api_key
 from app.hp_etl.simple_cache import get as cache_get, set as cache_set
-import json
 import sys
 
 router = APIRouter()

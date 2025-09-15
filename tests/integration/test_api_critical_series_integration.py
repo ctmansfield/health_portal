@@ -1,12 +1,9 @@
 import os
 import subprocess
 import time
-import socket
 import textwrap
 import psycopg
 import json
-import uuid
-from contextlib import closing
 import pytest
 from starlette.testclient import TestClient
 from srv.api.main import app

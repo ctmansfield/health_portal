@@ -4,7 +4,9 @@ Refresh materialized views used by the dashboard.
 - Attempts REFRESH MATERIALIZED VIEW CONCURRENTLY where possible, falls back to non-concurrent.
 - Safe to run from cron with flock locking.
 """
-import argparse, sys
+
+import argparse
+import sys
 from hp_etl.db import pg
 
 VIEWS = [

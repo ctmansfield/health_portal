@@ -5,9 +5,9 @@ Supports only LOINC 8867-4 (HR) and 59408-5 (SpO2).
 
 Usage: python jobs/map_fhir_to_events.py --dsn <DSN> [--person-id me]
 """
+
 import argparse
 import json
-import datetime as dt
 from hp_etl.db import pg
 
 LOINC_HR = "8867-4"

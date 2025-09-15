@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import argparse, json, gzip, sys
+import argparse
+import json
+import gzip
+import sys
 from typing import IO
 
 

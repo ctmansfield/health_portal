@@ -1,7 +1,5 @@
 from fastapi.testclient import TestClient
 from srv.api.main import app
-import tempfile
-import os
 
 client = TestClient(app)
 

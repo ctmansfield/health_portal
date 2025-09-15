@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import re
 import sys
 from pathlib import Path
@@ -53,9 +52,9 @@ def check():
                 path_s, anchor = link, None
             target = (md.parent / path_s).resolve()
             try:
-                target_rel = target.relative_to(ROOT)
+                _ = target.relative_to(ROOT)
             except Exception:
-                target_rel = target
+                pass
             if not target.exists():
                 errors.append(f"{md}: broken link to {path_s}")
                 continue

@@ -7,7 +7,14 @@ Usage: python jobs/import_apple_health.py --zip /path/to/export.zip --person-id 
 - Uses analytics.etl_state['apple_last_ts'] to only import new samples.
 - Optionally writes output as CSV and/or NDJSON.
 """
-import argparse, zipfile, os, json, datetime as dt, xml.etree.ElementTree as ET, csv
+
+import argparse
+import zipfile
+import os
+import json
+import datetime as dt
+import xml.etree.ElementTree as ET
+import csv
 from hp_etl.events import bulk_insert
 from hp_etl.state import get_state, set_state
 

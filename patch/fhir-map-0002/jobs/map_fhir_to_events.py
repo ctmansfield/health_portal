@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import argparse, json, datetime as dt
+import argparse
+import json
+import datetime as dt
 
 try:
     from hp_etl.fhir_map import observation_to_event as _map_obs
@@ -79,9 +81,9 @@ def main():
     sql = f"""
       SELECT resource
       FROM fhir_raw.resources
-      WHERE {' AND '.join(where)}
+      WHERE {" AND ".join(where)}
       ORDER BY imported_at ASC
-      {('LIMIT %s' if args.limit else '')}
+      {("LIMIT %s" if args.limit else "")}
     """
     if args.limit:
         params.append(args.limit)

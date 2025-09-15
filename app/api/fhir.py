@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Query
-import subprocess, os
+from fastapi import APIRouter
+import subprocess
+import os
 
 router = APIRouter(prefix="/fhir", tags=["fhir"])
 

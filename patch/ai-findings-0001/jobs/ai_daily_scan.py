@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import argparse, json, datetime as dt
+import argparse
+import json
+import datetime as dt
 from typing import List, Tuple
 from hp_etl.db import pg, dsn_from_env
 from hp_etl.state import get_state, set_state
@@ -19,7 +21,7 @@ def fetch_days(code: str, agg: str, dsn: str) -> List[Tuple[str, float]]:
         where code_system='LOINC' and code=%s and value_num is not null
           and effective_time >= now() - interval '60 days'
       )
-      select d::text, { 'percentile_disc(0.5) within group (order by value_num)' if agg=='median' else 'min(value_num)' }
+      select d::text, {"percentile_disc(0.5) within group (order by value_num)" if agg == "median" else "min(value_num)"}
       from src group by 1 order by 1;
     """
     out = []

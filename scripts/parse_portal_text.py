@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-import sys, re, csv, unicodedata, datetime as dt
+import sys
+import re
+import csv
+import unicodedata
+import datetime as dt
 from pathlib import Path
 
 MONTH_RE = r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}"
@@ -30,7 +34,7 @@ def parse_date(s: str):
     for fmt in ("%b %d, %Y", "%B %d, %Y"):
         try:
             return dt.datetime.strptime(s, fmt).date()
-        except:
+        except Exception:
             pass
     return None
 
@@ -75,7 +79,7 @@ def parse_file(path: Path):
         unit = (m.group(3) or "").strip()
         try:
             val = float(valtxt.lstrip("<>"))
-        except:
+        except Exception:
             continue  # keep numeric only for labs timeline
         # noon UTC for date-only
         dt_iso = f"{current_date.isoformat()}T12:00:00Z"

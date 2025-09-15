@@ -309,7 +309,6 @@ def critical_series(
                     lab_daily[m] = lab_rows
 
     # transform rows into per-metric series
-    from datetime import datetime, timezone
     from zoneinfo import ZoneInfo
 
     out = []

@@ -268,36 +268,46 @@ async function fetchLabMetadata(personId){
     });
   }
 
-  async function loadAndRender() {
-  const [seriesRes, metaRes] = await Promise.allSettled([
-    fetchJSON('/labs/me/all-series'),
-    fetchJSON('/labs/me/labs-metadata')
-  ]);
-  if (seriesRes.status !== 'fulfilled') {
-    console.error('Error loading shared labs series:', seriesRes.reason);
-    if (typeof showError === 'function') showError('Could not load lab series. Please retry.');
-    return;
-  }
-  const series = seriesRes.value;
-  const meta = metaRes.status === 'fulfilled' ? metaRes.value : {};
-  if (metaRes.status !== 'fulfilled') {
-    console.warn('Labs metadata unavailable, rendering without it:', metaRes.reason);
-  }
-  try { renderGraphs(series, meta); }
-  catch (e) { console.error('Render error:', e); if (typeof showError === 'function') showError('Unable to render lab graphs.'); }
-}
-);
+  async function loadAndRender(el, startDate, endDate) {
+    try {
+      const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
+      const [seriesRes, metaRes] = await Promise.allSettled([
+        fetchAllLabs(personId, startDate, endDate),
+        fetchLabMetadata(personId)
+      ]);
+      if (seriesRes.status !== 'fulfilled') {
+        console.error('Error loading shared labs series:', seriesRes.reason);
+        showError('Could not load lab series. Please retry.');
+        return;
+      }
+      const series = Array.isArray(seriesRes.value) ? seriesRes.value : [];
+      _dataCache = series;
 
-      console.log('Labs Metadata filtered:', filteredMetadata);
+      const meta = metaRes.status === 'fulfilled' ? (metaRes.value || []) : [];
+      const blacklist = new Set(['hr', 'spo2']);
+      const filteredMetadata = (meta || []).filter(m => m && m.metric && !blacklist.has(String(m.metric).toLowerCase()));
 
-      ALL_METRICS = filteredMetadata.map(m => m.metric);
+      const metricsFromMeta = filteredMetadata.map(m => m.metric);
+      const metricsFromSeries = Array.from(new Set(series.map(s => s.metric))).filter(Boolean);
+      const metricList = metricsFromMeta.length ? metricsFromMeta : metricsFromSeries;
+      ALL_METRICS = metricList;
 
-      renderControlsWithGroups(el, filteredMetadata, ALL_METRICS);
+      const initialChecked = metricList.slice(0, Math.min(5, metricList.length));
+      const displayMeta = filteredMetadata.length ? filteredMetadata : metricList.map(m => ({ metric: m, label: m }));
+
+      renderControlsWithGroups(el, displayMeta, initialChecked);
       renderCharts(el, _labMedEvents);
     } catch (e) {
       console.warn('Error loading shared labs:', e);
+      showError('Unable to render lab graphs.');
     }
   }
+
+  // Expose loader for hotfix boot script
+  window.loadAndRender = function(el, startDate, endDate) {
+    if (!el) el = document.querySelector(SEL);
+    if (el) return loadAndRender(el, startDate, endDate);
+  };
 
   function showError(msg) {
   const el = document.querySelector('#labs-shared-error');

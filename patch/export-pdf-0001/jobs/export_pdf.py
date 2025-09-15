@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import argparse, datetime as dt, os
+import argparse
+import datetime as dt
+import os
 from hp_etl.db import pg, dsn_from_env
 
 from reportlab.lib.pagesizes import A4

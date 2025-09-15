@@ -22,7 +22,8 @@ def observation_to_event(obs: dict) -> Optional[dict]:
     first_code = coding[0]
     system = first_code.get("system")
     code = first_code.get("code")
-    display = first_code.get("display")
+    # display unused for now
+    _display = first_code.get("display")
     if not (system and code):
         return None
 

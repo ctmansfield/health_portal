@@ -32,7 +32,7 @@ def liver_daily(
     sql = f"""
       SELECT person_id, day, alt_p50, ast_p50, alp_p50, ggt_p50, bili_total_max, bili_direct_max, albumin_p50
       FROM analytics.mv_liver_daily
-      WHERE {' AND '.join(where)}
+      WHERE {" AND ".join(where)}
       ORDER BY day DESC, person_id
     """
     dsn = dsn_from_env()

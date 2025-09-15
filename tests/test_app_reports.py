@@ -1,8 +1,6 @@
 from fastapi.testclient import TestClient
-import json
 import uuid
 from srv.api.main import app
-import datetime as dt
 
 client = TestClient(app)
 

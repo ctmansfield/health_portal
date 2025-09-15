@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import argparse, sys
+import argparse
+import sys
 from hp_etl.db import pg, dsn_from_env
 from hp_etl.exporters import to_csv, to_ndjson
 

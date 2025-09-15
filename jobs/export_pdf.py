@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import argparse, os, datetime as dt
+import argparse
+import os
+import datetime as dt
 from hp_etl.db import pg, dsn_from_env
 
 from reportlab.lib.pagesizes import A4
@@ -46,7 +48,7 @@ def vitals_chart(rows):
         d.add(String(10, dh / 2 - 6, "No daily vitals to plot.", fontSize=10))
         return d
 
-    xs = list(range(len(rows)))
+    # xs unused; remove to satisfy lint
     hr = [(i, float(r[1])) for i, r in enumerate(rows) if r[1] is not None]
     sp = [(i, float(r[2]) * 100.0) for i, r in enumerate(rows) if r[2] is not None]
 
@@ -119,7 +121,7 @@ def main():
     for r in latest:
         hr = f"{int(r['hr_latest'])}" if r["hr_latest"] is not None else "—"
         sp = (
-            f"{round(float(r['spo2_latest'])*100.0,1)}"
+            f"{round(float(r['spo2_latest']) * 100.0, 1)}"
             if r["spo2_latest"] is not None
             else "—"
         )

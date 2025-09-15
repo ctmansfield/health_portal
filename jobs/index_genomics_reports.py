@@ -4,7 +4,11 @@ Index genomics risk report files into analytics.genomics_reports.
 - Looks in GEN_REPORT_DIR (env or default) for files (pdf/html).
 - Extracts report_id (filename), optional person_id (from filename pattern), and inserts/updates the table.
 """
-import os, argparse, json, datetime as dt
+
+import os
+import argparse
+import json
+import datetime as dt
 from hp_etl.db import pg
 
 DEFAULT_DIR = "/mnt/nas_storage/genomics-stack/risk_reports/out"
