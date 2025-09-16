@@ -36,3 +36,11 @@ context/arch/*.md
 *.bak.*
 *.patch
 cron.log
+
+# Multi-backend generated files
+.env.local
+src/config/runtime.generated.json
+public/runtime-config.json
+
+# Local data volumes
+data/postgres

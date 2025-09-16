@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: hp_hapi_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hapi
+      POSTGRES_USER: hapi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hapi}
+    volumes:
+      - ../../data/postgres:/var/lib/postgresql/data
+    ports:
+      # Expose on 55432 to avoid conflicts with local postgres
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U hapi -d hapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  fhir:
+    image: ${HAPI_IMAGE:-hapiproject/hapi:latest}
+    container_name: hp_hapi_server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/hapi
+      SPRING_DATASOURCE_USERNAME: hapi
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-hapi}
+      # Optional: advertised base address
+      HAPI_FHIR_SERVER_ADDRESS: http://localhost:8080/fhir
+      HAPI_FHIR_IMPLEMENTATIONDESCRIPTION: Health Portal Local HAPI
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL","curl -fsS http://localhost:8080/fhir/metadata >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20

@@ -1,6 +1,9 @@
-// labs_shared_v3.js — improved: shows full lab catalog, disables metrics without person data
 (function(){
   'use strict';
+
+  // Add cache variables
+  let _dataCache = null;
+  let _labMedEvents = [];
 
   // Mark v3 present so v2 can opt-out when v3 is available
   window.hpLabsSharedV3 = true;
@@ -37,7 +40,6 @@
     return response.json();
   }
 
-  // render controls - accept items with possible .disabled flag
   function renderControlsWithGroups(el, metadata, initialChecked = []) {
     const controls = $('.hp-labs-controls', el);
     controls.innerHTML = '';
@@ -79,14 +81,15 @@
 
     groupKeys.forEach(group => {
       const list = groupsMap[group];
-      list.sort((a,b)=>( (a.label||a.metric||a).toString().localeCompare((b.label||b.metric||b).toString())  ));
+      list.sort((a,b)=>( (a.label||a.metric||a).toString().localeCompare((b.label||b.metric||b).toString()) ));
       const cont = document.createElement('div'); cont.dataset.group = group; cont.style.padding='6px';
-      const hdr = document.createElement('h3'); hdr.textContent = group + ` (${list.length})`; hdr.style.margin='0 0 6px 0'; cont.appendChild(hdr);
+      const hdr = document.createElement('h3'); hdr.textContent = group + ` (${list.length})`;
+      hdr.style.margin='0 0 6px 0'; cont.appendChild(hdr);
       list.forEach(item => {
         const metricKey = (item.metric || item).toString();
         const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='center'; row.style.marginBottom='6px';
         const cb = document.createElement('input'); cb.type='checkbox'; cb.value = metricKey; cb.id = 'cb_' + metricKey; if(initialChecked.includes(metricKey)) cb.checked = true;
-        if(item.disabled) cb.disabled = true; // mark metrics with no person data as disabled
+        if(item.disabled) cb.disabled = true;
         const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = (item.label || metricKey); lbl.style.marginLeft='8px';
         row.appendChild(cb); row.appendChild(lbl); cont.appendChild(row);
       });
@@ -95,7 +98,6 @@
 
     // date selectors (append at bottom left)
     const dr = document.createElement('div'); dr.style.gridColumn='1 / -1'; dr.style.marginTop='6px';
-    // we reuse selects already created by caller if present; caller will re-append
     controls.appendChild(dr);
 
     controls.addEventListener('change', (e)=>{
@@ -107,10 +109,6 @@
     console.log('Rendered controls count:', controls.querySelectorAll('input[type=checkbox]').length);
   }
 
-  // rest of code: reuse renderCharts from v3 (multi-axis) — keep as before
-  // For brevity, import renderCharts and loadAndRender from v2 logic adapted in-place below
-
-  // renderCharts: multi-axis plotting and unit heuristics
   function renderCharts(el, medEvents = []) {
     if (!_dataCache) return;
 
@@ -196,7 +194,6 @@
     }
   }
 
-  // loadAndRender: labs-only (exclude hr/spo2)
   async function loadAndRender(el, startDate, endDate) {
     try {
       const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
@@ -249,13 +246,12 @@
       const metaMap = (filteredMetadata || []).reduce((acc, it) => { acc[it.metric] = it; return acc; }, {});
       const displayMeta = metricList.map(m => {
         const base = metaMap[m] ? Object.assign({}, metaMap[m]) : { metric: m, label: m };
-        if (!seriesMetrics.includes(m)) base.disabled = true; // mark metrics without person data
+        if (!seriesMetrics.includes(m)) base.disabled = true;
         return base;
       });
 
       try { _labMedEvents = await fetchMedications(personId); } catch(e) { _labMedEvents = []; }
 
-      // expose debug
       window.ALL_METRICS = metricList; window._dataCache = _dataCache;
 
       renderControlsWithGroups(el, displayMeta, initialChecked);
@@ -265,5 +261,23 @@
       showError('Unable to render lab graphs.');
     }
   }
+
+  window.loadAndRender = function(el, startDate, endDate) {
+    if (!el) el = document.querySelector(SEL);
+    if (el) return loadAndRender(el, startDate, endDate);
+  };
+
+  function showError(msg) {
+    const el = document.querySelector('#labs-shared-error');
+    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    else { console.error(msg); }
+  }
+
+  function boot() {
+    document.querySelectorAll(SEL).forEach(el => loadAndRender(el));
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 
 })();

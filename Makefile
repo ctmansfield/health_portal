@@ -45,3 +45,48 @@ import-fhir:
 
 api:
 	. .venv/bin/activate && HP_DSN="$(HP_DSN)" uvicorn app.api.main:app --host 0.0.0.0 --port 8800 --reload
+
+
+# >>> HAPI FHIR TARGETS >>>
+HAPI_COMPOSE := ops/hapi_fhir/docker-compose.yml
+HAPI_ENV := ops/hapi_fhir/.env
+
+.PHONY: up-hapi down-hapi logs-hapi reset-hapi seed-hapi smoke-hapi
+
+up-hapi:
+	@if [ -f $(HAPI_ENV) ]; then export $$(grep -v '^#' $(HAPI_ENV) | xargs); fi; \
+	docker compose -f $(HAPI_COMPOSE) up -d
+
+down-hapi:
+	docker compose -f $(HAPI_COMPOSE) down
+
+logs-hapi:
+	docker compose -f $(HAPI_COMPOSE) logs -f
+
+reset-hapi: down-hapi
+	rm -rf data/postgres
+
+smoke-hapi:
+	bash ops/hapi_fhir/smoke.sh
+
+seed-hapi:
+	bash ops/hapi_fhir/seed.sh
+# <<< HAPI FHIR TARGETS <<<
+
+
+# >>> APPLE HEALTH TARGETS >>>
+.PHONY: apple-import apple-post apple-validate
+
+APPLE_EXPORT ?= ~/Downloads/apple_health/export.xml
+APPLE_OUT ?= /tmp/apple_to_fhir.json
+FHIR_BASE ?= http://localhost:8080/fhir
+
+apple-import:
+	@bash ops/apple_health/convert.sh $(APPLE_EXPORT) $(APPLE_OUT) --subject=Patient/example
+
+apple-post:
+	@curl -sS -X POST "$(FHIR_BASE)" -H "Content-Type: application/fhir+json" --data-binary @$(APPLE_OUT) | jq .
+
+apple-validate:
+	@curl -sS -X POST "$(FHIR_BASE)/$validate" -H "Content-Type: application/fhir+json" --data-binary @$(APPLE_OUT) | jq .issue[]
+# <<< APPLE HEALTH TARGETS <<<<

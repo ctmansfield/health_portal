@@ -1,0 +1,32 @@
+{
+  "local": {
+    "label": "Local Dev (HAPI FHIR + local API)",
+    "api_base": "http://localhost:3000/api",
+    "fhir_base": "http://localhost:8080/fhir",
+    "cds_hooks": "http://localhost:8090/cds-hooks",
+    "audience": "local"
+  },
+  "cerner-sandbox": {
+    "label": "Oracle Health (Cerner) Sandbox",
+    "api_base": "https://your-bff.example.com/api",
+    "fhir_base": "https://fhir-ehr-code.cerner.com/r4/12345678-1234-1234-1234-1234567890ab",
+    "cds_hooks": "https://cds.example.com",
+    "audience": "cerner-sandbox",
+    "smart_issuer": "https://authorization.sandboxcerner.com"
+  },
+  "staging": {
+    "label": "Staging",
+    "api_base": "https://staging-api.example.com/api",
+    "fhir_base": "https://staging-fhir.example.com/r4",
+    "cds_hooks": "https://staging-cds.example.com",
+    "audience": "staging"
+  },
+  "mock": {
+    "label": "Mock (dev)",
+    "api_base": "http://localhost:3000/api",
+    "fhir_base": "http://localhost:4010/fhir",
+    "cds_hooks": "http://localhost:4011",
+    "audience": "mock",
+    "mock": true
+  }
+}
