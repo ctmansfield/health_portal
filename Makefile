@@ -75,27 +75,72 @@ seed-hapi:
 
 
 
+
+
+
+
+
 # >>> APPLE HEALTH TARGETS >>>
 .PHONY: apple-import apple-post apple-validate
 
 APPLE_EXPORT ?= ~/Downloads/apple_health/export.xml
 APPLE_OUT ?= /tmp/apple_to_fhir.json
-FHIR_BASE ?= http://localhost:8080/fhir
+# Try to autodetect if not set; falls back to /fhir
+FHIR_BASE ?= $(shell bash /incoming/discover_fhir_base.sh 2>/dev/null || echo http://localhost:8080/fhir)
 
 apple-import:
 	@bash ops/apple_health/convert.sh $(APPLE_EXPORT) $(APPLE_OUT) --subject=Patient/example
 
+# Posts a transaction Bundle to the FHIR base.
+# - Forces JSON via Accept + _format=json
+# - Follows redirects and preserves POST
+# - Saves headers/body when not JSON for inspection
 apple-post:
-	@echo "POST $(APPLE_OUT) -> $(FHIR_BASE)"
-	@curl -sS -X POST "$(FHIR_BASE)" \
-		-H "Content-Type: application/fhir+json" \
-		-H "Accept: application/fhir+json" \
-		--data-binary @$(APPLE_OUT) | tee /tmp/hapi_apple_post.out | jq . || { \
-			echo "Non-JSON response saved to /tmp/hapi_apple_post.out"; exit 1; }
+	@BASE="$(FHIR_BASE)"; URL="$${BASE%/}?_format=json"; \
+	echo "POST $(APPLE_OUT) -> $$URL"; \
+	curl -sS -L --post301 --post302 --post303 \
+	  -X POST "$$URL" \
+	  -H "Content-Type: application/fhir+json" \
+	  -H "Accept: application/fhir+json" \
+	  --data-binary @$(APPLE_OUT) \
+	  -D /tmp/hapi_apple_post.headers \
+	  -o /tmp/hapi_apple_post.out; \
+	CT=$$(awk 'BEGIN{IGNORECASE=1}/^content-type:/{print $$2}' /tmp/hapi_apple_post.headers | tr -d '\r'); \
+	if echo "$$CT" | grep -qi json; then jq . </tmp/hapi_apple_post.out; \
+	else echo "Non-JSON (Content-Type=$$CT). First 200 bytes:"; head -c 200 /tmp/hapi_apple_post.out; echo; exit 1; fi
 
 apple-validate:
-	@curl -sS -X POST "$(FHIR_BASE)/$validate" \
-		-H "Content-Type: application/fhir+json" \
-		-H "Accept: application/fhir+json" \
-		--data-binary @$(APPLE_OUT) | jq .issue[]
+	@BASE="$(FHIR_BASE)"; URL="$${BASE%/}/$validate?_format=json"; \
+	curl -sS -L \
+	  -H "Content-Type: application/fhir+json" \
+	  -H "Accept: application/fhir+json" \
+	  -X POST "$$URL" \
+	  --data-binary @$(APPLE_OUT) | jq .issue[]
 # <<< APPLE HEALTH TARGETS >>>
+
+
+# >>> VA BLUE BUTTON TARGETS >>>
+.PHONY: va-import va-post
+
+VA_BB_TXT ?= ~/Downloads/VA-Blue-Button.txt
+VA_BB_OUT ?= /tmp/va_bb_to_fhir.json
+# Try autodiscovery if present; else default to local stack on 8085
+FHIR_BASE ?= $(shell bash /incoming/discover_fhir_base.sh 2>/dev/null || echo http://localhost:8085/fhir)
+
+va-import:
+	@bash ops/va_bb/convert.sh $(VA_BB_TXT) $(VA_BB_OUT) --subject=Patient/example
+
+va-post:
+	@BASE="$(FHIR_BASE)"; URL="$${BASE%/}?_format=json"; \
+	echo "POST $(VA_BB_OUT) -> $$URL"; \
+	curl -sS -L --post301 --post302 --post303 \
+	  -X POST "$$URL" \
+	  -H "Content-Type: application/fhir+json" \
+	  -H "Accept: application/fhir+json" \
+	  --data-binary @$(VA_BB_OUT) \
+	  -D /tmp/hapi_va_post.headers \
+	  -o /tmp/hapi_va_post.out; \
+	CT=$$(awk 'BEGIN{IGNORECASE=1}/^content-type:/{print $$2}' /tmp/hapi_va_post.headers | tr -d '\r'); \
+	if echo "$$CT" | grep -qi json; then jq . </tmp/hapi_va_post.out; \
+	else echo "Non-JSON (Content-Type=$$CT). First 200 bytes:"; head -c 200 /tmp/hapi_va_post.out; echo; exit 1; fi
+# <<< VA BLUE BUTTON TARGETS >>>
