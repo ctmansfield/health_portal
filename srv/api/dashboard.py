@@ -305,7 +305,7 @@ async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
                 # fall back to mv_labs_all which contains metric + day + median_val
                 try:
                     cur.execute(
-                        "SELECT DISTINCT LOWER(metric) as metric_lower FROM analytics.mv_labs_all WHERE person_id = %s",
+                        "SELECT DISTINCT LOWER(metric) as metric_lower FROM analytics.mv_labs_all WHERE person_id = %s AND LOWER(metric) NOT IN ('hr','spo2') ORDER BY metric_lower",
                         (person_id,),
                     )
                     rows = [(r[0], None, r[0]) for r in cur.fetchall()]
@@ -488,6 +488,176 @@ def _no_store_headers(resp: Response) -> Response:
     resp.headers["Cache-Control"] = "no-store"
     resp.headers["X-Frame-Options"] = "DENY"
     return resp
+
+
+@router.get("/labs/metrics-catalog")
+async def labs_metrics_catalog():
+    """Return global catalog of distinct lab metrics (across all persons) merged with local mapping.
+
+    Behavior:
+    - Query analytics.mv_labs_all for observed metrics
+    - Merge entries from tools/portal_ingest/mappings/loinc_map.csv to provide a broader catalog
+    - Return unique metric keys (lowercase) with optional display/label when available
+    """
+    try:
+        observed = []
+        try:
+            with db.pg() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT DISTINCT LOWER(metric) FROM analytics.mv_labs_all ORDER BY 1"
+                )
+                observed = [r[0] for r in cur.fetchall()]
+        except Exception:
+            observed = []
+
+        # Merge mapping file entries as additional known lab metrics
+        # Try a few candidate paths for the loinc_map.csv
+        mapping_set = []
+        try:
+            import csv as _csv
+
+            cand_paths = []
+            # Candidate: repo_root/tools/portal_ingest/mappings/loinc_map.csv
+            repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            cand_paths.append(
+                os.path.join(
+                    repo_root, "tools", "portal_ingest", "mappings", "loinc_map.csv"
+                )
+            )
+            # Candidate: srv/api/../tools/... (legacy)
+            cand_paths.append(
+                os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    "..",
+                    "tools",
+                    "portal_ingest",
+                    "mappings",
+                    "loinc_map.csv",
+                )
+            )
+            # Candidate: tools/portal_ingest/mappings relative
+            cand_paths.append(
+                os.path.join("tools", "portal_ingest", "mappings", "loinc_map.csv")
+            )
+
+            mp = None
+            for p in cand_paths:
+                p2 = os.path.normpath(p)
+                if os.path.exists(p2):
+                    mp = p2
+                    break
+            if mp:
+                with open(mp, "r", encoding="utf-8") as mf:
+                    reader = _csv.DictReader(mf)
+                    for row in reader:
+                        pat = (row.get("pattern") or "").strip()
+                        canon = (row.get("canonical_name") or "").strip()
+                        if not pat:
+                            continue
+                        key = pat.lower()
+                        mapping_set.append({"metric": key, "label": canon or pat})
+        except Exception:
+            mapping_set = []
+
+        # Combine observed and mapping keys; preserve label when available
+        catalog = {}
+        for k in observed:
+            if not k:
+                continue
+            catalog[k] = {"metric": k, "label": k}
+        for m in mapping_set:
+            mk = m.get("metric")
+            if not mk:
+                continue
+            if mk not in catalog:
+                catalog[mk] = {"metric": mk, "label": m.get("label") or mk}
+            else:
+                # prefer nicer label if present
+                if m.get("label"):
+                    catalog[mk]["label"] = m.get("label")
+
+        out = list(catalog.values())
+        # sort alphabetically by label
+        out.sort(key=lambda x: (x.get("label") or x.get("metric")))
+        return JSONResponse(content=out)
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": "metrics_catalog_failed", "detail": str(e)[:2000]},
+        )
+
+
+@router.get("/debug/labs")
+async def debug_labs(person_id: str = "me"):
+    """Return quick diagnostics about labs and medications data availability for a person.
+
+    - metadata_source: which analytics view was used (v_labs_all or mv_labs_all)
+    - counts/samples for mv_labs_all and medications.events
+    """
+    info = {}
+    try:
+        with db.pg() as conn:
+            cur = conn.cursor()
+            # try v_labs_all first
+            try:
+                cur.execute(
+                    "SELECT count(*) FROM analytics.v_labs_all WHERE person_id = %s",
+                    (person_id,),
+                )
+                info["v_labs_all_count"] = cur.fetchone()[0]
+                info["metadata_source"] = "v_labs_all"
+            except Exception:
+                # fallback to mv_labs_all
+                try:
+                    cur.execute(
+                        "SELECT count(*) FROM analytics.mv_labs_all WHERE person_id = %s",
+                        (person_id,),
+                    )
+                    info["mv_labs_all_count"] = cur.fetchone()[0]
+                    info["metadata_source"] = "mv_labs_all"
+                except Exception as e:
+                    info["metadata_source"] = None
+                    info["metadata_error"] = str(e)[:2000]
+
+            # sample metrics from mv_labs_all if present
+            try:
+                cur.execute(
+                    "SELECT metric, count(*) FROM analytics.mv_labs_all WHERE person_id = %s GROUP BY metric ORDER BY metric LIMIT 20",
+                    (person_id,),
+                )
+                info["mv_samples"] = [
+                    {"metric": r[0], "count": r[1]} for r in cur.fetchall()
+                ]
+            except Exception:
+                info["mv_samples"] = None
+
+            # medication events sample
+            try:
+                cur.execute(
+                    "SELECT count(*) FROM medications.events WHERE person_id = %s",
+                    (person_id,),
+                )
+                info["med_events_count"] = cur.fetchone()[0]
+                cur.execute(
+                    "SELECT effective_time, code FROM medications.events WHERE person_id = %s ORDER BY effective_time DESC LIMIT 10",
+                    (person_id,),
+                )
+                info["med_events_sample"] = [
+                    {"time": (r[0].isoformat() if r[0] else None), "code": r[1]}
+                    for r in cur.fetchall()
+                ]
+            except Exception:
+                info["med_events_count"] = 0
+                info["med_events_sample"] = []
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500, content={"error": "debug_failed", "detail": str(e)[:2000]}
+        )
+
+    return JSONResponse(content=info)
 
 
 @router.get("/ui/components/report-summary-card", response_class=HTMLResponse)

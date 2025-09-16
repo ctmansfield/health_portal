@@ -1,6 +1,12 @@
 (function(){
   'use strict';
 
+  // If v3 is present, no-op to avoid duplicate boot behavior
+  if (typeof window !== 'undefined' && window.hpLabsSharedV3) {
+    console.log('labs_shared_v3 present — skipping labs_shared_v2 boot');
+    return;
+  }
+
   const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeDateSelect } = window.hpLabsShared;
   const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
 
@@ -133,8 +139,24 @@ async function fetchLabMetadata(personId){
     const storedStart = storageGet('shared_labs_date_start', minDate.toISOString().slice(0, 10));
     const storedEnd = storageGet('shared_labs_date_end', maxDate.toISOString().slice(0, 10));
 
+    // Debug summary: show loaded metric names at top of controls
+    const summaryDiv = document.createElement('div');
+    summaryDiv.style.fontSize = '0.9rem';
+    summaryDiv.style.marginBottom = '8px';
+    const metricNames = (metadata || []).map(m => m.metric).filter(me => !['hr','spo2'].includes(String(me).toLowerCase())).join(', ');
+    summaryDiv.textContent = metricNames ? `Loaded metrics: ${metricNames}` : '';
+    if (summaryDiv.textContent) controls.appendChild(summaryDiv);
+
     const groupsMap = {};
+    const localBlacklist = new Set(['hr','spo2']);
     metadata.forEach(m => {
+      if (!m || !m.metric) return;
+      if (localBlacklist.has(String(m.metric).toLowerCase())) return;
+      // Exclude vitals (hr, spo2) from the labs metadata
+      if (!m || !m.metric) return;
+      const metLower = String(m.metric).toLowerCase();
+      if (['hr','spo2'].includes(metLower)) return;
+
       const labelLower = (m.label || '').toLowerCase();
       let group = 'Other';
       for (const [key, cat] of Object.entries(CATEGORY_MAP)) {
@@ -207,10 +229,12 @@ async function fetchLabMetadata(personId){
         loadAndRender(el, start, end);
       }
     });
+    // debug: report how many controls rendered
+    console.log('Rendered controls count:', controls.querySelectorAll('input[type=checkbox]').length);
   }
 
   function renderCharts(el, medEvents = []) {
-    if(!_dataCache) return;
+    if (!_dataCache) return;
 
     const checkedMetrics = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'))
       .map(cb => cb.value);
@@ -218,54 +242,100 @@ async function fetchLabMetadata(personId){
     const body = $('.hp-labs-body', el);
     body.innerHTML = '';
 
-    const datasetsMap = {};
-    checkedMetrics.forEach(m => datasetsMap[m] = []);
-
+    // Build a mapping metric -> series
+    const seriesMap = {};
     _dataCache.forEach(metricData => {
-      const m = metricData.metric;
-      if(!datasetsMap[m]) return;
-      metricData.series.forEach(point => {
-        datasetsMap[m].push({ x: point.t_utc, y: point.v });
-      });
+      if (metricData && metricData.metric) seriesMap[metricData.metric] = metricData.series || [];
     });
 
-    const canvas = document.createElement('canvas');
-    body.appendChild(canvas);
+    // Heuristic unit inference and normalization
+    const unitForMetric = {}; // metric -> unit string
+    const transformedData = {}; // metric -> [{x,y}]
 
-    const ctx = canvas.getContext('2d');
+    checkedMetrics.forEach(m => {
+      const s = (seriesMap[m] || []).slice();
+      if (!s || s.length === 0) { transformedData[m] = []; unitForMetric[m] = ''; return; }
+      // infer unit: common cases
+      let unit = '';
+      // If metric name suggests spo2 or values are fractional < 2 -> percent
+      const vals = s.map(p => (p && p.v != null) ? Number(p.v) : null).filter(v => v != null && !Number.isNaN(v));
+      const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+      if (m.toLowerCase().includes('spo2') || (avg > 0 && avg <= 2)) {
+        unit = '%';
+        transformedData[m] = s.map(p => ({ x: p.t_utc, y: (p.v != null ? Number(p.v) * 100 : null) }));
+      } else if (m.toLowerCase().includes('hr') || m.toLowerCase().includes('heart') ) {
+        unit = 'bpm';
+        transformedData[m] = s.map(p => ({ x: p.t_utc, y: (p.v != null ? Number(p.v) : null) }));
+      } else {
+        // default: leave numeric as-is
+        transformedData[m] = s.map(p => ({ x: p.t_utc, y: (p.v != null ? Number(p.v) : null) }));
+      }
+      unitForMetric[m] = unit || '';
+    });
 
+    // Build axes mapping: primary axis 'y' is left, others stacked on right (y1,y2...)
+    const unitToAxis = {};
+    const axes = {};
+    let axisCount = 0;
+    checkedMetrics.forEach(m => {
+      const u = unitForMetric[m] || '';
+      if (!(u in unitToAxis)) {
+        const axisId = axisCount === 0 ? 'y' : 'y' + axisCount;
+        unitToAxis[u] = axisId;
+        axisCount += 1;
+      }
+    });
+
+    // Create Chart datasets with yAxisID and label including unit
     const colors = ['#2563eb', '#f97316', '#4ade80', '#f43f5e', '#60a5fa', '#a78bfa', '#fca5a5', '#84cc16', '#22d3ee', '#fbbf24'];
-
     const datasets = checkedMetrics.map((m, idx) => ({
-      label: m,
-      data: datasetsMap[m],
+      label: m + (unitForMetric[m] ? ` (${unitForMetric[m]})` : ''),
+      data: transformedData[m] || [],
       borderColor: colors[idx % colors.length],
+      backgroundColor: colors[idx % colors.length],
       fill: false,
       tension: 0.3,
-      pointRadius: 2
+      pointRadius: 2,
+      yAxisID: unitToAxis[unitForMetric[m] || ''] || 'y'
     }));
 
-    if(window._labsSharedChartInstance) window._labsSharedChartInstance.destroy();
+    // Build scales config
+    const scales = {
+      x: { type: 'time', time: { unit: 'day' }, title: { display: true, text: 'Date' } }
+    };
 
-    const plugins = [];
-    // if(medEvents.length > 0) {
-    //   plugins.push(makeMedOverlayPlugin(medEvents, { color: '#f43f5e', label: 'Medications' }));
-    // }
+    // Primary axis (y) = left
+    const primaryUnit = Object.keys(unitToAxis)[0] || '';
+    scales['y'] = { position: 'left', title: { display: !!primaryUnit, text: primaryUnit || 'Value' }, grid: { drawOnChartArea: true } };
 
-    window._labsSharedChartInstance = new Chart(ctx, {
+    // Other axes on right
+    let axisIndex = 1;
+    for (const [u, axisId] of Object.entries(unitToAxis)) {
+      if (axisId === 'y') continue;
+      scales[axisId] = { position: 'right', title: { display: !!u, text: u || '' }, grid: { drawOnChartArea: false }, offset: true };
+      axisIndex += 1;
+    }
+
+    if (window._labsSharedChartInstance) window._labsSharedChartInstance.destroy();
+
+    window._labsSharedChartInstance = new Chart(body.appendChild(document.createElement('canvas')).getContext('2d'), {
       type: 'line',
       data: { datasets },
       options: {
         responsive: true,
         parsing: { xAxisKey: 'x', yAxisKey: 'y' },
-        scales: {
-          x: { type: 'time', time: { unit: 'day' }, title: { display: true, text: 'Date' } },
-          y: { title: { display: true, text: 'Value' } }
-        },
-        plugins: { legend: { display: true } },
-        plugins
+        scales,
+        plugins: {
+          legend: { display: true },
+          tooltip: { mode: 'nearest', intersect: false }
+        }
       }
     });
+
+    // Attach medication overlays if any
+    if (_labMedEvents && _labMedEvents.length > 0) {
+      try { addMedicationOverlays(window._labsSharedChartInstance, _labMedEvents); } catch (e) { console.warn('Failed to add med overlays', e); }
+    }
   }
 
   async function loadAndRender(el, startDate, endDate) {
@@ -284,19 +354,57 @@ async function fetchLabMetadata(personId){
       _dataCache = series;
 
       const meta = metaRes.status === 'fulfilled' ? (metaRes.value || []) : [];
-      const blacklist = new Set(['hr', 'spo2']);
-      const filteredMetadata = (meta || []).filter(m => m && m.metric && !blacklist.has(String(m.metric).toLowerCase()));
+      // Exclude vitals from metadata and series: this shared labs UI is labs-only
+      const filteredMetadata = (meta || []).filter(m => m && m.metric && !['hr','spo2'].includes(String(m.metric).toLowerCase()));
 
       const metricsFromMeta = filteredMetadata.map(m => m.metric);
-      const metricsFromSeries = Array.from(new Set(series.map(s => s.metric))).filter(Boolean);
-      const metricList = metricsFromMeta.length ? metricsFromMeta : metricsFromSeries;
-      ALL_METRICS = metricList;
+      const metricsFromSeries = Array.from(new Set(series.map(s => s.metric))).filter(Boolean).filter(m => !['hr','spo2'].includes(String(m).toLowerCase()));
 
+      // Use union of metadata and series-derived metrics
+      let metricList = Array.from(new Set([...(metricsFromMeta || []), ...(metricsFromSeries || [])]));
+      // Remove any remaining vitals defensively
+      metricList = metricList.filter(m => !['hr','spo2'].includes(String(m).toLowerCase()));
+
+      ALL_METRICS = metricList;
+      window.ALL_METRICS = ALL_METRICS;
+      window._dataCache = _dataCache;
+
+      // Default checked: first up to 5 lab metrics
       const initialChecked = metricList.slice(0, Math.min(5, metricList.length));
-      const displayMeta = filteredMetadata.length ? filteredMetadata : metricList.map(m => ({ metric: m, label: m }));
+
+      // Build display metadata aligned with chosen metricList
+      const metaMap = (filteredMetadata || []).reduce((acc, it) => { acc[it.metric] = it; return acc; }, {});
+      const displayMeta = metricList.map(m => metaMap[m] || { metric: m, label: m });
+
+      // Fetch medication events but do not treat vitals as meds
+      try {
+        _labMedEvents = await fetchMedications(personId);
+      } catch (e) {
+        _labMedEvents = [];
+      }
 
       renderControlsWithGroups(el, displayMeta, initialChecked);
       renderCharts(el, _labMedEvents);
+
+      // Show note if no medication events available
+      const controls = document.querySelector('.hp-labs-controls');
+      if (controls) {
+        let note = controls.querySelector('.hp-labs-med-note');
+        if (!_labMedEvents || _labMedEvents.length === 0) {
+          if (!note) {
+            note = document.createElement('div');
+            note.className = 'hp-labs-med-note';
+            note.style.marginTop = '8px';
+            note.style.fontStyle = 'italic';
+            note.textContent = 'No medication events available for this person.';
+            controls.appendChild(note);
+          } else {
+            note.textContent = 'No medication events available for this person.';
+          }
+        } else {
+          if (note) note.remove();
+        }
+      }
     } catch (e) {
       console.warn('Error loading shared labs:', e);
       showError('Unable to render lab graphs.');

@@ -144,6 +144,17 @@ canvas#hrSpark, canvas#spo2Spark{background:rgba(37,99,235,0.04);padding:6px;bor
 .hp-labs-chart { background:#fff; border:1px solid #e6eef8; border-radius:12px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .hp-labs-chart h4 { margin: 0 0 8px 0; }
 
+/* Controls container: scroll if too tall and make items readable */
+.hp-labs-controls {
+  max-height: 360px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #fff;
+}
+.hp-labs-controls div { line-height: 1.4; }
+
 /* Ensure canvases are not gigantic */
 .hp-labs-chart canvas { width:100% !important; height:280px !important; display:block; }
 

@@ -1,3 +1,36 @@
+# Change Log
+
+## Shared Labs Feature Improvements
+
+- Implemented a new client-side module (`labs_shared_v3.js`) that:
+  - Displays a comprehensive catalog of lab metrics merged from person metadata and a global metrics catalog.
+  - Supports disabled controls for lab metrics without available data.
+  - Uses a two-column grouped layout with Select all / Clear buttons.
+  - Implements multi-axis Chart.js plotting with unit-aware labeling.
+  - Provides debug summaries and medication event notifications.
+  - Excludes vital metrics (hr, spo2) from the labs shared UI.
+
+- Updated the existing client (`labs_shared_v2.js`) to:
+  - Prevent execution when `labs_shared_v3.js` is present to avoid duplicate initialization.
+  - Filter out vitals from display and data.
+
+- Updated the server API to:
+  - Provide a merged lab metrics catalog combining metrics observed in person data and metrics from a local LOINC mapping CSV.
+  - Exclude vitals (hr, spo2) from labs metadata and series responses.
+
+- Changed shared labs page template to:
+  - Include `labs_shared.js` first (for shared utilities).
+  - Load `labs_shared_v3.js` next (primary client implementation).
+  - Load `labs_shared_v2.js` last (fallback, no-op if v3 is present).
+
+- Fixed script loading order in the shared labs page template to ensure dependencies are loaded before dependent scripts.
+
+- Enhanced debug tooling with exposure of window variables and a debug API endpoint `/debug/labs` for server-side lab data checks.
+
+- Improved error handling and user notifications for missing data or load failures.
+
+- Overall achieve feature completeness, improved UX, and reliable chart rendering for the Shared Labs feature.
+
 CHANGE LOG
 ==========
 
