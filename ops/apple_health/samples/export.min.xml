@@ -1,35 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <HealthData locale="en_US">
   <ExportDate value="2025-09-15"/>
-  <Me>
-    <DataExport timeZone="America/New_York"/>
-  </Me>
-
-  <Record type="HKQuantityTypeIdentifierHeartRate"
-          unit="count/min"
-          value="72"
-          sourceName="Apple Watch"
-          startDate="2025-09-14 08:10:00 -0400"
-          endDate="2025-09-14 08:10:00 -0400" />
-
-  <Record type="HKQuantityTypeIdentifierBloodPressureSystolic"
-          unit="mmHg"
-          value="122"
-          sourceName="Omron"
-          startDate="2025-09-14 09:05:00 -0400"
-          endDate="2025-09-14 09:05:00 -0400" />
-
-  <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic"
-          unit="mmHg"
-          value="78"
-          sourceName="Omron"
-          startDate="2025-09-14 09:05:00 -0400"
-          endDate="2025-09-14 09:05:00 -0400" />
-
-  <Record type="HKQuantityTypeIdentifierStepCount"
-          unit="count"
-          value="8456"
-          sourceName="iPhone"
-          startDate="2025-09-14 23:59:00 -0400"
-          endDate="2025-09-14 23:59:00 -0400" />
+  <Record type="HKQuantityTypeIdentifierHeartRate" unit="count/min" value="72" sourceName="Apple Watch"
+          startDate="2025-09-14 08:10:00 -0400" endDate="2025-09-14 08:10:00 -0400" />
+  <Record type="HKQuantityTypeIdentifierBloodPressureSystolic" unit="mmHg" value="122" sourceName="Omron"
+          startDate="2025-09-14 09:05:00 -0400" endDate="2025-09-14 09:05:00 -0400" />
+  <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic" unit="mmHg" value="78" sourceName="Omron"
+          startDate="2025-09-14 09:05:00 -0400" endDate="2025-09-14 09:05:00 -0400" />
 </HealthData>
