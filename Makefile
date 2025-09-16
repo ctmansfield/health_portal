@@ -74,6 +74,7 @@ seed-hapi:
 # <<< HAPI FHIR TARGETS <<<
 
 
+
 # >>> APPLE HEALTH TARGETS >>>
 .PHONY: apple-import apple-post apple-validate
 
@@ -85,8 +86,16 @@ apple-import:
 	@bash ops/apple_health/convert.sh $(APPLE_EXPORT) $(APPLE_OUT) --subject=Patient/example
 
 apple-post:
-	@curl -sS -X POST "$(FHIR_BASE)" -H "Content-Type: application/fhir+json" --data-binary @$(APPLE_OUT) | jq .
+	@echo "POST $(APPLE_OUT) -> $(FHIR_BASE)"
+	@curl -sS -X POST "$(FHIR_BASE)" \
+		-H "Content-Type: application/fhir+json" \
+		-H "Accept: application/fhir+json" \
+		--data-binary @$(APPLE_OUT) | tee /tmp/hapi_apple_post.out | jq . || { \
+			echo "Non-JSON response saved to /tmp/hapi_apple_post.out"; exit 1; }
 
 apple-validate:
-	@curl -sS -X POST "$(FHIR_BASE)/$validate" -H "Content-Type: application/fhir+json" --data-binary @$(APPLE_OUT) | jq .issue[]
-# <<< APPLE HEALTH TARGETS <<<<
+	@curl -sS -X POST "$(FHIR_BASE)/$validate" \
+		-H "Content-Type: application/fhir+json" \
+		-H "Accept: application/fhir+json" \
+		--data-binary @$(APPLE_OUT) | jq .issue[]
+# <<< APPLE HEALTH TARGETS >>>

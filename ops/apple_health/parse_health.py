@@ -18,7 +18,6 @@ HK_MAP = {
 }
 
 def parse_datetime(s):
-    # Apple format "YYYY-MM-DD HH:MM:SS -0400" -> ISO 8601
     s = s.replace(" ", "T", 1)
     if len(s) >= 5 and (s[-5] in "+-") and s[-3] != ":":
         s = s[:-2] + ":" + s[-2:]
@@ -53,8 +52,7 @@ def obs_from_record(rec, subject_ref):
         except Exception:
             pass
     obs = {
-        "resourceType":"Observation",
-        "status":"final",
+        "resourceType":"Observation","status":"final",
         "category":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/observation-category","code":"vital-signs"}]}],
         "code":{"coding":[{"system":"http://loinc.org","code":code,"display":display}],"text":display},
         "subject":{"reference":subject_ref},
@@ -84,7 +82,6 @@ def main():
     entries = []
     made = skipped = 0
 
-    # buffer BP pairs
     bp = {}
     for r in recs:
         t = r.get("type")
@@ -93,14 +90,13 @@ def main():
             bp.setdefault(key, {})[t] = r
             continue
         o = obs_from_record(r, subject)
-        if o:
+        if o is not None:
             rid = f"urn:uuid:{uuid.uuid4()}"
             entries.append({"request":{"method":"PUT","url":f"Observation/{rid}"},"fullUrl":rid,"resource":o})
             made += 1
         else:
             skipped += 1
 
-    # compose BP panel
     def bp_q(r):
         try: v = float(r.get("value"))
         except Exception: return None
@@ -110,29 +106,29 @@ def main():
     for (start,end), pair in bp.items():
         s = pair.get("HKQuantityTypeIdentifierBloodPressureSystolic")
         d = pair.get("HKQuantityTypeIdentifierBloodPressureDiastolic")
-        if s and d:
+        if s is not None and d is not None:
             eff = parse_datetime(end or start)
             comp_s = bp_q(s); comp_d = bp_q(d)
-            if comp_s and comp_d:
-                o = {
-                    "resourceType":"Observation","status":"final",
-                    "category":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/observation-category","code":"vital-signs"}]}],
-                    "code":{"coding":[{"system":"http://loinc.org","code":"85354-9","display":"Blood pressure panel"}],"text":"Blood pressure"},
-                    "subject":{"reference":subject},
-                    "effectiveDateTime": eff,
-                    "component":[
-                        {"code":{"coding":[{"system":"http://loinc.org","code":"8480-6","display":"Systolic"}]},"valueQuantity":comp_s},
-                        {"code":{"coding":[{"system":"http://loinc.org","code":"8462-4","display":"Diastolic"}]},"valueQuantity":comp_d},
-                    ]
-                }
-                rid = f"urn:uuid:{uuid.uuid4()}"
-                entries.append({"request":{"method":"PUT","url":f"Observation/{rid}"},"fullUrl":rid,"resource":o})
-                made += 1
+            if comp_s is None or comp_d is None:
+                continue
+            o = {
+                "resourceType":"Observation","status":"final",
+                "category":[{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/observation-category","code":"vital-signs"}]}],
+                "code":{"coding":[{"system":"http://loinc.org","code":"85354-9","display":"Blood pressure panel"}],"text":"Blood pressure"},
+                "subject":{"reference":subject},"effectiveDateTime": eff,
+                "component":[
+                    {"code":{"coding":[{"system":"http://loinc.org","code":"8480-6","display":"Systolic"}]},"valueQuantity":comp_s},
+                    {"code":{"coding":[{"system":"http://loinc.org","code":"8462-4","display":"Diastolic"}]},"valueQuantity":comp_d}
+                ]
+            }
+            rid = f"urn:uuid:{uuid.uuid4()}"
+            entries.append({"request":{"method":"PUT","url":f"Observation/{rid}"},"fullUrl":rid,"resource":o})
+            made += 1
         else:
-            for r in (s,d):
-                if r:
+            for r in (s, d):
+                if r is not None:
                     o = obs_from_record(r, subject)
-                    if o:
+                    if o is not None:
                         rid = f"urn:uuid:{uuid.uuid4()}"
                         entries.append({"request":{"method":"PUT","url":f"Observation/{rid}"},"fullUrl":rid,"resource":o})
                         made += 1
