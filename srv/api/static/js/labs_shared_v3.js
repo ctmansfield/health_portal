@@ -5,7 +5,105 @@
   let _dataCache = null;
   let _labMedEvents = [];
 
-  // Mark v3 present so v2 can opt-out when v3 is available
+  // CATEGORY_MAP: Grouping for lab metrics
+  const CATEGORY_MAP = {
+    // Complete Blood Count (CBC)
+    'wbc': 'Complete Blood Count',
+    'rbc': 'Complete Blood Count',
+    'hgb': 'Complete Blood Count',
+    'hct': 'Complete Blood Count',
+    'plt': 'Complete Blood Count',
+    'platelet count': 'Complete Blood Count',
+    'hemoglobin a1c': 'Complete Blood Count',
+    'mcv': 'Complete Blood Count',
+    'mch': 'Complete Blood Count',
+    'mchc': 'Complete Blood Count',
+    'mpv': 'Complete Blood Count',
+
+    // Liver Function Tests (LFT)
+    'alt': 'Liver Function Tests',
+    'ast': 'Liver Function Tests',
+    'alp': 'Liver Function Tests',
+    'ggt': 'Liver Function Tests',
+    'bilirubin total': 'Liver Function Tests',
+    'bilirubin direct': 'Liver Function Tests',
+    'albumin': 'Liver Function Tests',
+
+    // Metabolic Panel
+    'glucose': 'Metabolic Panel',
+    'na': 'Metabolic Panel',
+    'k': 'Metabolic Panel',
+    'cl': 'Metabolic Panel',
+    'bicarbonate': 'Metabolic Panel',
+    'creatinine': 'Metabolic Panel',
+    'bun': 'Metabolic Panel',
+    'calcium corrected for albumin': 'Metabolic Panel',
+
+    // Hormones
+    'testosterone': 'Hormones',
+    'thyroid stimulating hormone': 'Hormones',
+    'tsh': 'Hormones',
+    'prolactin': 'Hormones',
+    'cortisol (serum)': 'Hormones',
+    'fsh': 'Hormones',
+
+    // Lipids
+    'cholesterol total': 'Lipids',
+    'hdl': 'Lipids',
+    'ldl': 'Lipids',
+    'triglycerides': 'Lipids',
+    'chol/hdl ratio': 'Lipids',
+
+    // Coagulation
+    'pt': 'Coagulation',
+    'inr': 'Coagulation',
+    'aptt': 'Coagulation',
+
+    // Urine Tests
+    'urine creatinine': 'Urine Tests',
+    'urine glucose': 'Urine Tests',
+    'urine ketones': 'Urine Tests',
+    'urine protein': 'Urine Tests',
+    'urine rbc/hpf': 'Urine Tests',
+    'urine wbc/hpf': 'Urine Tests',
+    'urine blood': 'Urine Tests',
+
+    // Miscellaneous
+    'weight': 'Miscellaneous',
+    'body mass index': 'Miscellaneous',
+    'body surface area': 'Miscellaneous',
+    'calculated osmolality': 'Miscellaneous',
+    'estimated glomerular filtration rate': 'Miscellaneous',
+    'sed rate (knox)': 'Miscellaneous',
+    'iron': 'Miscellaneous',
+  };
+
+  // Extended alias map for catalog labels and keys to canonical metric keys used in CATEGORY_MAP
+  const ALIAS_MAP = {
+    'albumin': 'albumin',
+    'alkaline phosphatase': 'alp',
+    'gamma glutamyl transferase': 'ggt',
+    'bilirubin': 'bilirubin total',
+    '1968-7': 'bilirubin total', // LOINC code from catalog
+    'alanine aminotransferase': 'alt',
+    'alt': 'alt',
+    'aspartate aminotransferase': 'ast',
+    'ast': 'ast',
+    'ggt': 'ggt',
+    'bili total': 'bilirubin total',
+    'bili direct': 'bilirubin direct',
+    'hgb a1c': 'hemoglobin a1c',
+    'hemoglobin a1c': 'hemoglobin a1c',
+  };
+
+  // Extended vitals blacklist including known LOINC codes and label variants
+  const VITALS_BLACKLIST = new Set([
+    'hr', 'spo2',
+    '8867-4',
+    '59408-5',
+    'heart rate', 'oxygen saturation'
+  ]);
+
   window.hpLabsSharedV3 = true;
 
   const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeDateSelect } = window.hpLabsShared;
@@ -20,7 +118,8 @@
     if(endDate) params.set('end_date', endDate);
     const response = await fetch(baseUrl + '?' + params.toString(), {cache:'no-store'});
     if(!response.ok) throw new Error('Failed to load all labs');
-    return response.json();
+    _dataCache = await response.json();
+    return _dataCache;
   }
 
   async function fetchMetricsCatalog(){
@@ -40,6 +139,7 @@
     return response.json();
   }
 
+  // Modified renderControlsWithGroups to add date selectors and wiring
   function renderControlsWithGroups(el, metadata, initialChecked = []) {
     const controls = $('.hp-labs-controls', el);
     controls.innerHTML = '';
@@ -52,19 +152,20 @@
     // header
     const header = document.createElement('div');
     header.style.display = 'flex'; header.style.justifyContent='space-between'; header.style.alignItems='center'; header.style.marginBottom='8px';
-    const summary = document.createElement('div'); summary.style.color='#6b7280'; summary.textContent = 'Metrics: ' + metadata.map(m => m.metric).join(', ');
+    const summary = document.createElement('div'); summary.style.color='#6b7280'; summary.style.flex = '1';
+    summary.textContent = 'Metrics: ' + metadata.map(m => m.metric).join(', ');
     const btns = document.createElement('div');
-    const selAll = document.createElement('button'); selAll.className='btn'; selAll.textContent='Select all'; selAll.addEventListener('click', ()=>{ controls.querySelectorAll('input[type=checkbox]:not(:disabled)').forEach(cb=>cb.checked=true); const evt = new Event('change'); controls.dispatchEvent(evt); });
+    const selAll = document.createElement('button'); selAll.className='btn'; selAll.textContent='Select all'; selAll.addEventListener('click', ()=>{ controls.querySelectorAll('input[type=checkbox]:not(:disabled)').forEach(cb=>cb.checked=true); controls.dispatchEvent(new Event('change')); });
     const clr = document.createElement('button'); clr.className='btn'; clr.style.background='#6b7280'; clr.textContent='Clear'; clr.addEventListener('click', ()=>{ controls.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false); controls.dispatchEvent(new Event('change')); });
     btns.appendChild(selAll); btns.appendChild(clr);
     header.appendChild(summary); header.appendChild(btns);
+
     controls.appendChild(header);
 
     // groups
     const groupsMap = {};
     metadata.forEach(m => {
       const label = (m.label || m.metric || m).toString();
-      // find category by label
       let group = 'Other';
       const labelLower = label.toLowerCase();
       for(const [k,v] of Object.entries(CATEGORY_MAP)){
@@ -76,7 +177,6 @@
 
     const groupKeys = Object.keys(groupsMap).sort((a,b)=>{ if(a==='Other') return 1; if(b==='Other') return -1; return a.localeCompare(b); });
 
-    // two-column grid
     controls.style.display='grid'; controls.style.gridTemplateColumns='1fr 1fr'; controls.style.gap='12px';
 
     groupKeys.forEach(group => {
@@ -85,10 +185,11 @@
       const cont = document.createElement('div'); cont.dataset.group = group; cont.style.padding='6px';
       const hdr = document.createElement('h3'); hdr.textContent = group + ` (${list.length})`;
       hdr.style.margin='0 0 6px 0'; cont.appendChild(hdr);
+
       list.forEach(item => {
         const metricKey = (item.metric || item).toString();
         const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='center'; row.style.marginBottom='6px';
-        const cb = document.createElement('input'); cb.type='checkbox'; cb.value = metricKey; cb.id = 'cb_' + metricKey; if(initialChecked.includes(metricKey)) cb.checked = true;
+        const cb = document.createElement('input'); cb.type='checkbox'; cb.value = metricKey; cb.id = 'cb_' + metricKey; cb.checked = !item.disabled;
         if(item.disabled) cb.disabled = true;
         const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = (item.label || metricKey); lbl.style.marginLeft='8px';
         row.appendChild(cb); row.appendChild(lbl); cont.appendChild(row);
@@ -96,13 +197,62 @@
       controls.appendChild(cont);
     });
 
-    // date selectors (append at bottom left)
-    const dr = document.createElement('div'); dr.style.gridColumn='1 / -1'; dr.style.marginTop='6px';
-    controls.appendChild(dr);
+    // date selectors container
+    const dateRangeCont = document.createElement('div');
+    dateRangeCont.style.gridColumn = '1 / -1';
+    dateRangeCont.style.marginTop = '12px';
+    dateRangeCont.style.display = 'flex';
+    dateRangeCont.style.justifyContent = 'flex-start';
+    dateRangeCont.style.alignItems = 'center';
+    dateRangeCont.style.gap = '12px';
 
-    controls.addEventListener('change', (e)=>{
-      if(e.target.type === 'checkbox') {
+    const minDate = getDateRange(_dataCache).minDate.toISOString().slice(0,10);
+    const maxDate = getDateRange(_dataCache).maxDate.toISOString().slice(0,10);
+
+    const storedStart = storageGet('shared_labs_date_start', minDate);
+    const storedEnd = storageGet('shared_labs_date_end', maxDate);
+
+    const startLabel = document.createElement('label');
+    startLabel.textContent = 'Start Date: ';
+    startLabel.htmlFor = 'shared_labs_start_date';
+    const startSelect = document.createElement('input');
+    startSelect.type = 'date';
+    startSelect.id = 'shared_labs_start_date';
+    startSelect.min = minDate;
+    startSelect.max = maxDate;
+    startSelect.value = storedStart;
+
+    const endLabel = document.createElement('label');
+    endLabel.textContent = 'End Date: ';
+    endLabel.htmlFor = 'shared_labs_end_date';
+    const endSelect = document.createElement('input');
+    endSelect.type = 'date';
+    endSelect.id = 'shared_labs_end_date';
+    endSelect.min = minDate;
+    endSelect.max = maxDate;
+    endSelect.value = storedEnd;
+
+    dateRangeCont.appendChild(startLabel);
+    dateRangeCont.appendChild(startSelect);
+    dateRangeCont.appendChild(endLabel);
+    dateRangeCont.appendChild(endSelect);
+    controls.appendChild(dateRangeCont);
+
+    // Handle changes
+    controls.addEventListener('change', e => {
+      if (e.target.type === 'checkbox') {
         renderCharts(el, _labMedEvents);
+      } else if (e.target.type === 'date') {
+        let start = startSelect.value;
+        let end = endSelect.value;
+        if (start > end) {
+          alert('Start date must be before or equal to end date');
+          e.target.value = e.target.id === 'shared_labs_start_date' ? end : start;
+          return;
+        }
+        storageSet('shared_labs_date_start', start);
+        storageSet('shared_labs_date_end', end);
+        loadAndRender(el, start, end);
       }
     });
 
@@ -118,13 +268,11 @@
     const body = $('.hp-labs-body', el);
     body.innerHTML = '';
 
-    // Build series map
     const seriesMap = {};
     _dataCache.forEach(metricData => {
       if (metricData && metricData.metric) seriesMap[metricData.metric] = metricData.series || [];
     });
 
-    // Normalize & infer units
     const unitForMetric = {};
     const transformed = {};
     checkedMetrics.forEach(m => {
@@ -144,7 +292,6 @@
       }
     });
 
-    // Map units to axes
     const unitToAxis = {};
     let axisCount = 0;
     checkedMetrics.forEach(m => {
@@ -194,12 +341,24 @@
     }
   }
 
+  function dumpCatalogMetrics(catalog) {
+    console.log('Catalog dump:');
+    catalog.forEach((c) => {
+      console.log(`  Metric key: ${c.metric}, Label: ${c.label || '-'}'`);
+    });
+  }
+
+  // Update loadAndRender to use date filter parameters
   async function loadAndRender(el, startDate, endDate) {
     try {
       const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
+      const params = new URLSearchParams();
+      if (startDate) params.set('start_date', startDate);
+      if (endDate) params.set('end_date', endDate);
+
       const [seriesRes, metaRes, catalogRes] = await Promise.allSettled([
-        fetchAllLabs(personId, startDate, endDate),
-        fetchLabMetadata(personId),
+        fetch(`/labs/${encodeURIComponent(personId)}/all-series?` + params.toString(), {cache:'no-store'}).then(r=>r.json()),
+        fetch(`/labs/${encodeURIComponent(personId)}/labs-metadata`, {cache:'no-store'}).then(r=>r.json()),
         fetchMetricsCatalog()
       ]);
 
@@ -214,22 +373,44 @@
       const meta = metaRes.status === 'fulfilled' ? (metaRes.value || []) : [];
       const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value || []) : [];
 
-      // labs-only metadata (exclude vitals)
-      const filteredMetadata = (meta || []).filter(m => m && m.metric && !['hr','spo2'].includes(String(m.metric).toLowerCase()));
-      const metricsFromSeries = Array.from(new Set(series.map(s => s.metric))).filter(Boolean).filter(m => !['hr','spo2'].includes(String(m).toLowerCase()));
+      dumpCatalogMetrics(catalog);
 
-      // Build superset metric list: union of catalog, person metadata, and series (labs only)
-      const catalogMetrics = (catalog || []).map(c => c.metric).filter(Boolean).map(String);
-      const metaMetrics = filteredMetadata.map(m => String(m.metric));
-      const seriesMetrics = metricsFromSeries.map(m => String(m));
-      const metricSet = new Set([...catalogMetrics, ...metaMetrics, ...seriesMetrics]);
-      let metricList = Array.from(metricSet);
+      function normalizeKey(str) {
+        return str ? str.toLowerCase().trim() : '';
+      }
 
-      // Sort metricList by metadata order if available, else alphabetically
-      if (metaMetrics && metaMetrics.length) {
+      const filteredMetadata = (meta || []).filter(m => {
+        const k = normalizeKey(m.metric);
+        return m && m.metric && !VITALS_BLACKLIST.has(k);
+      });
+
+      const normalizedCatalog = (catalog || []).map(c => ({
+        ...c,
+        metric: normalizeKey(c.metric),
+        label: c.label ? normalizeKey(c.label) : '',
+      }));
+
+      const seriesMetrics = Array.from(new Set(
+        series.map(s => s.metric).filter(m => !VITALS_BLACKLIST.has(normalizeKey(m)))
+      ));
+
+      const filteredMetaMetrics = filteredMetadata.map(m => normalizeKey(m.metric));
+
+      const supersetMetricsSet = new Set([
+        ...normalizedCatalog
+          .filter(c => !VITALS_BLACKLIST.has(c.metric))
+          .map(c => ALIAS_MAP[c.label] || ALIAS_MAP[c.metric] || c.metric),
+        ...filteredMetaMetrics,
+        ...seriesMetrics,
+        ...Object.keys(CATEGORY_MAP).map(k => normalizeKey(k)),
+      ]);
+
+      let metricList = Array.from(supersetMetricsSet);
+
+      if (filteredMetaMetrics.length) {
         metricList.sort((a,b) => {
-          const ia = metaMetrics.indexOf(a);
-          const ib = metaMetrics.indexOf(b);
+          const ia = filteredMetaMetrics.indexOf(a);
+          const ib = filteredMetaMetrics.indexOf(b);
           if (ia === -1 && ib === -1) return a.localeCompare(b);
           if (ia === -1) return 1;
           if (ib === -1) return -1;
@@ -239,18 +420,41 @@
         metricList.sort();
       }
 
-      // initial checked: prefer metrics that have series data
-      const initialChecked = metricList.filter(m => seriesMetrics.includes(m)).slice(0, Math.min(5, metricList.length));
-
-      // displayMeta: include disabled flag for metrics with no person series
-      const metaMap = (filteredMetadata || []).reduce((acc, it) => { acc[it.metric] = it; return acc; }, {});
-      const displayMeta = metricList.map(m => {
-        const base = metaMap[m] ? Object.assign({}, metaMap[m]) : { metric: m, label: m };
-        if (!seriesMetrics.includes(m)) base.disabled = true;
-        return base;
+      const metaMap = {};
+      filteredMetadata.forEach(m => {
+        metaMap[normalizeKey(m.metric)] = m;
       });
 
-      try { _labMedEvents = await fetchMedications(personId); } catch(e) { _labMedEvents = []; }
+      normalizedCatalog.forEach(c => {
+        const key = ALIAS_MAP[c.label] || ALIAS_MAP[c.metric] || c.metric;
+        if (!(key in metaMap) && !VITALS_BLACKLIST.has(key)) {
+          metaMap[key] = { metric: key, label: c.label || key };
+        }
+      });
+
+      Object.entries(CATEGORY_MAP).forEach(([k,v]) => {
+        const normK = normalizeKey(k);
+        if (!(normK in metaMap)) {
+          metaMap[normK] = { metric: normK, label: normK, group: v };
+        }
+      });
+
+      const initialChecked = metricList.filter(m => seriesMetrics.includes(m)).slice(0, 5);
+
+      const displayMeta = metricList.map(m => {
+        const d = metaMap[m] ? Object.assign({}, metaMap[m]) : { metric: m, label: m };
+        if (!seriesMetrics.includes(m)) d.disabled = true;
+        return d;
+      });
+
+      console.log('Filtered and normalized metrics:', metricList);
+      console.log('Display metadata:', displayMeta);
+
+      try {
+        _labMedEvents = await fetchMedications(personId);
+      } catch(e) {
+        _labMedEvents = [];
+      }
 
       window.ALL_METRICS = metricList; window._dataCache = _dataCache;
 

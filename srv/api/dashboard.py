@@ -33,13 +33,11 @@ def login_get(request: Request, error: str | None = None):
 @router.post("/login")
 async def login_post(request: Request):
     api_key = None
-    # Try form first
     try:
         form = await request.form()
         api_key = form.get("api_key")
     except Exception:
         pass
-    # Try JSON body
     if not api_key:
         try:
             body_json = await request.json()
@@ -47,7 +45,6 @@ async def login_post(request: Request):
                 api_key = body_json.get("api_key")
         except Exception:
             pass
-    # Try raw body (x-www-form-urlencoded)
     if not api_key:
         try:
             body = (await request.body()).decode()
@@ -242,9 +239,10 @@ async def labs_all_series(person_id: str, auth=Depends(require_api_key)):
         try:
             cur.execute(
                 """
-                SELECT day, metric, median_val
-                FROM analytics.mv_labs_all
+                SELECT day, LOWER(label) AS metric, value_num
+                FROM analytics.v_labs_all
                 WHERE person_id = %s
+                AND LOWER(label) NOT IN ('hr', 'spo2')
                 ORDER BY day ASC
                 """,
                 (person_id,),
@@ -291,36 +289,28 @@ async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
             try:
                 cur.execute(
                     """
-                    SELECT DISTINCT LOWER(metric) as metric_lower, group_name, display_name
+                    SELECT DISTINCT LOWER(label) AS metric_name, label
                     FROM analytics.v_labs_all
                     WHERE person_id = %s
-                    AND LOWER(metric) NOT IN ('hr', 'spo2')
-                    ORDER BY group_name, display_name
+                    AND LOWER(label) NOT IN ('hr', 'spo2')
+                    ORDER BY label
                 """,
                     (person_id,),
                 )
                 rows = cur.fetchall()
             except Exception:
-                # fallback: v_labs_all may not expose the same columns in all deployments
-                # fall back to mv_labs_all which contains metric + day + median_val
                 try:
                     cur.execute(
-                        "SELECT DISTINCT LOWER(metric) as metric_lower FROM analytics.mv_labs_all WHERE person_id = %s AND LOWER(metric) NOT IN ('hr','spo2') ORDER BY metric_lower",
+                        "SELECT DISTINCT LOWER(label) AS metric_name FROM analytics.v_labs_all WHERE person_id = %s AND LOWER(label) NOT IN ('hr','spo2') ORDER BY metric_name",
                         (person_id,),
                     )
-                    rows = [(r[0], None, r[0]) for r in cur.fetchall()]
+                    rows = [(r[0], r[0]) for r in cur.fetchall()]
                 except Exception as e:
                     raise e
 
         metadata = []
-        for metric_lower, group_name, display_name in rows:
-            metadata.append(
-                {
-                    "metric": metric_lower,
-                    "group": group_name or "Other",
-                    "label": display_name or metric_lower,
-                }
-            )
+        for metric_name, label in rows:
+            metadata.append({"metric": metric_name, "group": "Other", "label": label})
         return JSONResponse(content=metadata)
     except Exception as e:
         traceback.print_exc()
@@ -379,7 +369,6 @@ async def labs_critical_series(
 
     with db.pg() as conn:
         cur = conn.cursor()
-        # Adjust table name as needed; keeping as-is from prior code
         cur.execute("SELECT 1 FROM person WHERE id = %s", (person_id,))
         if cur.fetchone() is None:
             return JSONResponse(status_code=404, content={"error": "Person not found"})
@@ -492,13 +481,6 @@ def _no_store_headers(resp: Response) -> Response:
 
 @router.get("/labs/metrics-catalog")
 async def labs_metrics_catalog():
-    """Return global catalog of distinct lab metrics (across all persons) merged with local mapping.
-
-    Behavior:
-    - Query analytics.mv_labs_all for observed metrics
-    - Merge entries from tools/portal_ingest/mappings/loinc_map.csv to provide a broader catalog
-    - Return unique metric keys (lowercase) with optional display/label when available
-    """
     try:
         observed = []
         try:
@@ -511,21 +493,17 @@ async def labs_metrics_catalog():
         except Exception:
             observed = []
 
-        # Merge mapping file entries as additional known lab metrics
-        # Try a few candidate paths for the loinc_map.csv
         mapping_set = []
         try:
             import csv as _csv
 
             cand_paths = []
-            # Candidate: repo_root/tools/portal_ingest/mappings/loinc_map.csv
             repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             cand_paths.append(
                 os.path.join(
                     repo_root, "tools", "portal_ingest", "mappings", "loinc_map.csv"
                 )
             )
-            # Candidate: srv/api/../tools/... (legacy)
             cand_paths.append(
                 os.path.join(
                     os.path.dirname(os.path.dirname(__file__)),
@@ -536,7 +514,6 @@ async def labs_metrics_catalog():
                     "loinc_map.csv",
                 )
             )
-            # Candidate: tools/portal_ingest/mappings relative
             cand_paths.append(
                 os.path.join("tools", "portal_ingest", "mappings", "loinc_map.csv")
             )
@@ -560,7 +537,6 @@ async def labs_metrics_catalog():
         except Exception:
             mapping_set = []
 
-        # Combine observed and mapping keys; preserve label when available
         catalog = {}
         for k in observed:
             if not k:
@@ -573,12 +549,10 @@ async def labs_metrics_catalog():
             if mk not in catalog:
                 catalog[mk] = {"metric": mk, "label": m.get("label") or mk}
             else:
-                # prefer nicer label if present
                 if m.get("label"):
                     catalog[mk]["label"] = m.get("label")
 
         out = list(catalog.values())
-        # sort alphabetically by label
         out.sort(key=lambda x: (x.get("label") or x.get("metric")))
         return JSONResponse(content=out)
     except Exception as e:
@@ -591,16 +565,10 @@ async def labs_metrics_catalog():
 
 @router.get("/debug/labs")
 async def debug_labs(person_id: str = "me"):
-    """Return quick diagnostics about labs and medications data availability for a person.
-
-    - metadata_source: which analytics view was used (v_labs_all or mv_labs_all)
-    - counts/samples for mv_labs_all and medications.events
-    """
     info = {}
     try:
         with db.pg() as conn:
             cur = conn.cursor()
-            # try v_labs_all first
             try:
                 cur.execute(
                     "SELECT count(*) FROM analytics.v_labs_all WHERE person_id = %s",
@@ -609,7 +577,6 @@ async def debug_labs(person_id: str = "me"):
                 info["v_labs_all_count"] = cur.fetchone()[0]
                 info["metadata_source"] = "v_labs_all"
             except Exception:
-                # fallback to mv_labs_all
                 try:
                     cur.execute(
                         "SELECT count(*) FROM analytics.mv_labs_all WHERE person_id = %s",
@@ -621,7 +588,6 @@ async def debug_labs(person_id: str = "me"):
                     info["metadata_source"] = None
                     info["metadata_error"] = str(e)[:2000]
 
-            # sample metrics from mv_labs_all if present
             try:
                 cur.execute(
                     "SELECT metric, count(*) FROM analytics.mv_labs_all WHERE person_id = %s GROUP BY metric ORDER BY metric LIMIT 20",
@@ -633,7 +599,6 @@ async def debug_labs(person_id: str = "me"):
             except Exception:
                 info["mv_samples"] = None
 
-            # medication events sample
             try:
                 cur.execute(
                     "SELECT count(*) FROM medications.events WHERE person_id = %s",

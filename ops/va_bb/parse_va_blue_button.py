@@ -104,6 +104,7 @@ def main():
     labs = extract_labs(text); meds = extract_meds(text)
     entries = []
 
+    # Labs -> Observation (POST to collection)
     for lab in labs:
         obs = {"resourceType":"Observation","status":"final","code":{"text": lab["name"]},"subject":{"reference":subject}}
         if lab.get("when"): obs["effectiveDateTime"] = lab["when"]
@@ -117,9 +118,13 @@ def main():
             obs["valueString"] = lab["value"]
         if lab.get("reference_range"):
             obs.setdefault("note", []).append({"text": f"Reference range: {lab['reference_range']}"})
-        rid = f"urn:uuid:{uuid.uuid4()}"
-        entries.append({"request":{"method":"PUT","url": f"Observation/{rid}"},"fullUrl": rid,"resource": obs})
+        entries.append({
+            "fullUrl": f"urn:uuid:{uuid.uuid4()}",
+            "resource": obs,
+            "request": {"method":"POST","url":"Observation"}
+        })
 
+    # Meds -> MedicationStatement (POST to collection)
     for med in meds:
         ms = {"resourceType":"MedicationStatement","status": med_status_to_fhir(med.get("status")),
               "medicationCodeableConcept":{"text": med["name"]},"subject":{"reference":subject}}
@@ -129,8 +134,11 @@ def main():
         if med.get("reason"):       note_bits.append(f"Reason: {med['reason']}")
         if med.get("quantity"):     note_bits.append(f"Qty: {med['quantity']}")
         if note_bits: ms["note"] = [{"text": " | ".join(note_bits)}]
-        rid = f"urn:uuid:{uuid.uuid4()}"
-        entries.append({"request":{"method":"PUT","url": f"MedicationStatement/{rid}"},"fullUrl": rid,"resource": ms})
+        entries.append({
+            "fullUrl": f"urn:uuid:{uuid.uuid4()}",
+            "resource": ms,
+            "request": {"method":"POST","url":"MedicationStatement"}
+        })
 
     bundle = {"resourceType":"Bundle","type":"transaction","entry": entries}
     with open(out_path, "w", encoding="utf-8") as f: json.dump(bundle, f, indent=2)

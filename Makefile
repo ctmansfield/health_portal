@@ -144,3 +144,19 @@ va-post:
 	if echo "$$CT" | grep -qi json; then jq . </tmp/hapi_va_post.out; \
 	else echo "Non-JSON (Content-Type=$$CT). First 200 bytes:"; head -c 200 /tmp/hapi_va_post.out; echo; exit 1; fi
 # <<< VA BLUE BUTTON TARGETS >>>
+
+# >>> FHIR EXPORT TARGETS >>>
+.PHONY: fhir-export
+
+FHIR_BASE ?= $(shell bash /incoming/discover_fhir_base.sh 2>/dev/null || echo http://localhost:8085/fhir)
+FHIR_SUBJECT ?= Patient/example
+LABS_CSV ?= /tmp/labs.csv
+MEDS_CSV ?= /tmp/meds.csv
+
+fhir-export:
+	@python3 ops/fhir/export_fhir.py \
+		--base $(FHIR_BASE) \
+		--subject $(FHIR_SUBJECT) \
+		--labs-out $(LABS_CSV) \
+		--meds-out $(MEDS_CSV)
+# <<< FHIR EXPORT TARGETS >>>
