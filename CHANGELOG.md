@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [Unreleased]
+### Added
+- `analytics.v_labs_metadata_person` view for person-scoped lab metadata (label/group/sensitive) derived from `v_labs_all_grouped`.
+- `GET /labs/{person_id}/labs-metadata` FastAPI route returning dynamic metadata for UI panel construction, with `include_sensitive` toggle.
+
+### Notes
+- Client should build panels by `group_name` from the returned items; labels are normalized (Title Case with acronyms preserved).
+
 ### Added
 - Documentation structure overhaul (Diátaxis): docs/index.md, how-to/, reference/, explanations/, runbooks/, and changes/ with newsfragment workflow.
 - Docs automation scripts: reindex_docs.py, build_catalog.py, build_adr_index.py, build_contracts_registry.py, build_code_map.py, build_glossary_synonyms.py, staleness_report.py, link_check.py (under scripts/docs/).

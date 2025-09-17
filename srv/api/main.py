@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from . import dashboard, dashboard_events, genomics
 from .reports import router as reports_router
-
+from srv.routers import labs  # Add this import
 
 app = FastAPI()
 
@@ -18,6 +18,7 @@ app.include_router(dashboard.router)
 app.include_router(dashboard_events.router)
 app.include_router(genomics.router)
 app.include_router(reports_router)
+app.include_router(labs.router)  # Add this line to include labs router
 
 # include v1 api if present
 try:
