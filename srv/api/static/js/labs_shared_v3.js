@@ -1,147 +1,15 @@
 (function(){
   'use strict';
 
-  // Add cache variables
   let _dataCache = null;
   let _labMedEvents = [];
 
-  // CATEGORY_MAP: Grouping for lab metrics
-  const CATEGORY_MAP = {
-    // Complete Blood Count (CBC)
-    'wbc': 'Complete Blood Count',
-    'rbc': 'Complete Blood Count',
-    'hgb': 'Complete Blood Count',
-    'hct': 'Complete Blood Count',
-    'plt': 'Complete Blood Count',
-    'platelet count': 'Complete Blood Count',
-    'hemoglobin a1c': 'Complete Blood Count',
-    'mcv': 'Complete Blood Count',
-    'mch': 'Complete Blood Count',
-    'mchc': 'Complete Blood Count',
-    'mpv': 'Complete Blood Count',
+  window.hpLabsSharedV3 = true;
 
-    // Liver Function Tests (LFT)
-    'alt': 'Liver Function Tests',
-    'ast': 'Liver Function Tests',
-    'alp': 'Liver Function Tests',
-    'ggt': 'Liver Function Tests',
-    'bilirubin total': 'Liver Function Tests',
-    'bilirubin direct': 'Liver Function Tests',
-    'albumin': 'Liver Function Tests',
+  const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeDateSelect } = window.hpLabsShared;
+  const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
 
-    // Metabolic Panel
-    'glucose': 'Metabolic Panel',
-    'na': 'Metabolic Panel',
-    'k': 'Metabolic Panel',
-    'cl': 'Metabolic Panel',
-    'bicarbonate': 'Metabolic Panel',
-    'creatinine': 'Metabolic Panel',
-    'bun': 'Metabolic Panel',
-    'calcium corrected for albumin': 'Metabolic Panel',
-
-    // Hormones
-    'testosterone': 'Hormones',
-    'thyroid stimulating hormone': 'Hormones',
-    'tsh': 'Hormones',
-    'prolactin': 'Hormones',
-    'cortisol (serum)': 'Hormones',
-    'fsh': 'Hormones',
-
-    // Lipids
-    'cholesterol total': 'Lipids',
-    'hdl': 'Lipids',
-    'ldl': 'Lipids',
-    'triglycerides': 'Lipids',
-    'chol/hdl ratio': 'Lipids',
-
-    // Coagulation
-    'pt': 'Coagulation',
-    'inr': 'Coagulation',
-    'aptt': 'Coagulation',
-
-    // Urine Tests
-    'urine creatinine': 'Urine Tests',
-    'urine glucose': 'Urine Tests',
-    'urine ketones': 'Urine Tests',
-    'urine protein': 'Urine Tests',
-    'urine rbc/hpf': 'Urine Tests',
-    'urine wbc/hpf': 'Urine Tests',
-    'urine blood': 'Urine Tests',
-
-    // Miscellaneous
-    'weight': 'Miscellaneous',
-    'body mass index': 'Miscellaneous',
-    'body surface area': 'Miscellaneous',
-    'calculated osmolality': 'Miscellaneous',
-    'estimated glomerular filtration rate': 'Miscellaneous',
-    'sed rate (knox)': 'Miscellaneous',
-    'iron': 'Miscellaneous',
-
-    // New panels
-    'urine': 'Urine Tests',
-    'drug screen': 'Drug Screen',
-    'antibodies': 'Antibodies'
-    // Add other if applicable
-  };
-
-  // Canonical metric key map to unify equivalent metric names
-  const CANONICAL_MAP = {
-    'ha1c': 'hemoglobin a1c',
-    'hba1c': 'hemoglobin a1c',
-    'hemoglobin a1c': 'hemoglobin a1c',
-    'bilirubin total': 'bilirubin total',
-    'bilrubin total': 'bilirubin total',
-    'bilirubin direct': 'bilirubin direct',
-    'bili total': 'bilirubin total',
-    'bili direct': 'bilirubin direct',
-    // add any other equivalents here
-  };
-
-  function canonicalizeMetric(str) {
-    const key = str.toLowerCase().trim();
-    return CANONICAL_MAP[key] || key;
-  }
-
-  const ALIAS_MAP = {
-    'albumin': 'albumin',
-    'alkaline phosphatase': 'alp',
-    'gamma glutamyl transferase': 'ggt',
-    'bilirubin': 'bilirubin total',
-    '1968-7': 'bilirubin total',
-    'alanine aminotransferase': 'alt',
-    'alt': 'alt',
-    'aspartate aminotransferase': 'ast',
-    'ast': 'ast',
-    'ggt': 'ggt',
-    'bili total': 'bilirubin total',
-    'bili direct': 'bilirubin direct',
-    'hgb a1c': 'hemoglobin a1c',
-    'hemoglobin a1c': 'hemoglobin a1c',
-
-    // Drug Screen examples
-    'hcg': 'drug screen',
-    'drug screen': 'drug screen',
-    'drug test': 'drug screen',
-
-    // Antibodies examples
-    'hiv antibodies': 'antibodies',
-    'hep b antibodies': 'antibodies',
-
-    // Urine examples
-    'urine protein': 'urine',
-    'urinalysis': 'urine',
-    'urine glucose': 'urine',
-    'urine ketones': 'urine'
-    // Add other urine metrics as needed
-  };
-
-  // Create reverse alias-to-group map to improve panel assignment
-  const aliasToGroup = {};
-  Object.entries(ALIAS_MAP).forEach(([alias, canonical]) => {
-    if(canonical && CATEGORY_MAP[canonical]) {
-      aliasToGroup[alias] = CATEGORY_MAP[canonical];
-    }
-  });
+  const SEL = '.hp-labs-shared';
 
   const VITALS_BLACKLIST = new Set([
     'hr', 'spo2',
@@ -150,14 +18,10 @@
     'heart rate', 'oxygen saturation'
   ]);
 
-  const HIDDEN_PANELS = new Set(['drug screen', 'sti']);
-
-  window.hpLabsSharedV3 = true;
-
-  const { $, $$, storageGet, storageSet, parseISODate, getDateRange, makeDateSelect } = window.hpLabsShared;
-  const { fetchMedications, addMedicationOverlays } = window.hpLabsOverlays;
-
-  const SEL = '.hp-labs-shared';
+  function canonicalizeMetric(str) {
+    const key = str.toLowerCase().trim();
+    return key;
+  }
 
   async function fetchAllLabs(personId, startDate, endDate){
     const baseUrl = `/labs/${encodeURIComponent(personId)}/all-series`;
@@ -187,38 +51,32 @@
     return response.json();
   }
 
-  // Modify renderPanelControls to not disable checkboxes blindly and to use aliasToGroup for group assignment
   function renderPanelControls(el, metadata, initialChecked = []) {
     const controls = $('.hp-labs-controls', el);
     controls.innerHTML = '';
 
-    if(!metadata || metadata.length === 0) {
+    if (!metadata || metadata.length === 0) {
       controls.textContent = 'No lab metrics available';
       return;
     }
 
-    // Group labs by group property, use aliasToGroup to assign group if available
+    const HIDDEN_PANELS = new Set(['drug screen', 'sti tests']);
+
+    // Group metadata by group_name lowercase, fallback 'other'
     const panelMap = {};
     metadata.forEach(m => {
-      let panel = (m.group || 'Other').toLowerCase();
-
-      // Also try alias-to-group mapping by metric and label
-      const metricNorm = m.metric.toLowerCase().trim();
-      const labelNorm = (m.label || '').toLowerCase().trim();
-      if(aliasToGroup[metricNorm]) panel = aliasToGroup[metricNorm].toLowerCase();
-      else if(aliasToGroup[labelNorm]) panel = aliasToGroup[labelNorm].toLowerCase();
-      if(HIDDEN_PANELS.has(panel)) return;
-      if(!panelMap[panel]) panelMap[panel] = [];
+      const panel = (m.group_name || 'Other').toLowerCase();
+      if (HIDDEN_PANELS.has(panel)) return;
+      if (!panelMap[panel]) panelMap[panel] = [];
       panelMap[panel].push(m);
     });
 
-    const panels = Object.keys(panelMap).sort((a,b) => {
-      if(a === 'other') return 1;
-      if(b === 'other') return -1;
+    const panels = Object.keys(panelMap).sort((a, b) => {
+      if (a === 'other') return 1;
+      if (b === 'other') return -1;
       return a.localeCompare(b);
     });
 
-    // Create dropdown to select panel
     const panelSelector = document.createElement('select');
     panelSelector.style.marginBottom = '8px';
 
@@ -231,14 +89,13 @@
 
     controls.appendChild(panelSelector);
 
-    // Container to hold lab checkboxes
     const checkboxContainer = document.createElement('div');
     controls.appendChild(checkboxContainer);
 
     function renderCheckboxes(panel) {
       const labs = panelMap[panel] || [];
       checkboxContainer.innerHTML = '';
-      labs.sort((a,b) => (a.label || a.metric).localeCompare(b.label || b.metric));
+      labs.sort((a, b) => (a.label || a.metric).localeCompare(b.label || b.metric));
 
       labs.forEach(item => {
         const row = document.createElement('div');
@@ -251,6 +108,8 @@
         cb.value = item.metric || item;
         cb.id = 'cb_' + cb.value;
         cb.checked = initialChecked.includes(cb.value);
+        cb.disabled = item.disabled || false;
+
         const lbl = document.createElement('label');
         lbl.htmlFor = cb.id;
         lbl.textContent = item.label || cb.value;
@@ -267,7 +126,6 @@
       renderCharts(el);
     });
 
-    // Initial render
     renderCheckboxes(panelSelector.value);
   }
 
@@ -278,31 +136,16 @@
     body.innerHTML = '';
 
     const checkedBoxes = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'));
-
     const metricsByPanel = {};
 
     checkedBoxes.forEach(cb => {
-      const metric = canonicalizeMetric(cb.value.toLowerCase());
-      let groupName = 'Other';
-      if (aliasToGroup[metric]) {
-        groupName = aliasToGroup[metric];
-      } else {
-        for (const [k, v] of Object.entries(CATEGORY_MAP)) {
-          if (metric.includes(k)) {
-            groupName = v;
-            break;
-          }
-        }
-      }
+      const metric = cb.value.toLowerCase();
+      const groupName = window._metricGroupMap && window._metricGroupMap[metric] ? window._metricGroupMap[metric] : 'Other';
 
-      if (HIDDEN_PANELS.has(groupName.toLowerCase())) return;
+      if (groupName.toLowerCase() === 'drug screen' || groupName.toLowerCase() === 'sti tests') return;
+
       if (!metricsByPanel[groupName]) metricsByPanel[groupName] = [];
       metricsByPanel[groupName].push(metric);
-    });
-
-    console.log('renderCharts - metrics by panel:');
-    Object.entries(metricsByPanel).forEach(([panelName, metrics]) => {
-      console.log(`Panel: ${panelName}, Metrics: ${metrics.join(', ')}`);
     });
 
     Object.entries(metricsByPanel).forEach(([panelName, metrics]) => {
@@ -318,21 +161,17 @@
       body.appendChild(panelDiv);
 
       const seriesMap = {};
-      _dataCache.forEach(md => {
-        seriesMap[canonicalizeMetric(md.metric.toLowerCase())] = md.series || [];
-      });
+      _dataCache.forEach(md => { seriesMap[md.metric.toLowerCase()] = md.series || []; });
 
       const unitForMetric = {};
       const transformed = {};
       metrics.forEach(m => {
-        const s = seriesMap[canonicalizeMetric(m.toLowerCase())] || [];
-        console.log(`Panel: ${panelName}, Metric: ${m}, Data points: ${s.length}`);
+        const s = seriesMap[m.toLowerCase()] || [];
         if (!s || s.length === 0) {
           transformed[m] = [];
           unitForMetric[m] = '';
           return;
         }
-
         const vals = s.map(p => (p && p.v !== null) ? Number(p.v) : null).filter(v => v !== null && !Number.isNaN(v));
         const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
         if (m.toLowerCase().includes('spo2') || (avg > 0 && avg <= 2)) {
@@ -425,16 +264,16 @@
     try {
       const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
       const params = new URLSearchParams();
-      if(startDate) params.set('start_date', startDate);
-      if(endDate) params.set('end_date', endDate);
+      if (startDate) params.set('start_date', startDate);
+      if (endDate) params.set('end_date', endDate);
 
       const [seriesRes, metaRes, catalogRes] = await Promise.allSettled([
-        fetch(`/labs/${encodeURIComponent(personId)}/all-series?` + params.toString(), {cache: 'no-store'}).then(r => r.json()),
-        fetch(`/labs/${encodeURIComponent(personId)}/labs-metadata`, {cache: 'no-store'}).then(r => r.json()),
+        fetch(`/labs/${encodeURIComponent(personId)}/all-series?` + params.toString(), { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/labs/${encodeURIComponent(personId)}/labs-metadata`, { cache: 'no-store' }).then(r => r.json()),
         fetchMetricsCatalog()
       ]);
 
-      if(seriesRes.status !== 'fulfilled') {
+      if (seriesRes.status !== 'fulfilled') {
         console.error('Error loading shared labs series:', seriesRes.reason);
         showError('Could not load lab series. Please retry.');
         return;
@@ -447,92 +286,57 @@
 
       dumpCatalogMetrics(catalog);
 
-      function normalizeKey(str) {
-        return str ? str.toLowerCase().trim() : '';
-      }
+      // Group labs dynamically from backend metadata
+      const HIDDEN_PANELS = new Set(['drug screen', 'sti tests']);
 
-      // Wrap normalizeKey with canonicalizeMetric
-      const normalizedAndCanonKey = (str) => canonicalizeMetric(normalizeKey(str));
-
+      // Filter vitals
       const filteredMetadata = (meta || []).filter(m => {
-        const k = normalizedAndCanonKey(m.metric);
-        return m && m.metric && !VITALS_BLACKLIST.has(k);
+        const label = m.label || m.metric || '';
+        return !VITALS_BLACKLIST.has(label.toLowerCase());
       });
 
-      const normalizedCatalog = (catalog || []).map(c => ({
-        ...c,
-        metric: normalizedAndCanonKey(c.metric),
-        label: c.label ? normalizeKey(c.label) : '',
-      }));
-
-      const seriesMetrics = Array.from(new Set(
-        series.map(s => s.metric).filter(m => !VITALS_BLACKLIST.has(normalizedAndCanonKey(m)))
-          .map(normalizedAndCanonKey)
-      ));
-
-      const filteredMetaMetrics = filteredMetadata.map(m => normalizedAndCanonKey(m.metric));
-
-      // Build superset metric list: union of catalog, metadata, series, and category map with canonical keys
+      // Build superset metrics
+      const seriesMetrics = Array.from(new Set(series.map(s => s.metric).filter(m => !VITALS_BLACKLIST.has(m.toLowerCase()))));
       const supersetMetricsSet = new Set([
-        ...normalizedCatalog.filter(c => !VITALS_BLACKLIST.has(c.metric)).map(c => ALIAS_MAP[c.label] || ALIAS_MAP[c.metric] || c.metric),
-        ...filteredMetaMetrics,
+        ...filteredMetadata.map(m => m.metric),
         ...seriesMetrics,
-        ...Object.keys(CATEGORY_MAP).map(k => normalizedAndCanonKey(k)),
+        ...catalog.map(c => c.metric.toLowerCase())
       ]);
 
       let metricList = Array.from(supersetMetricsSet);
-
-      if(filteredMetaMetrics.length) {
-        metricList.sort((a, b) => {
-          const ia = filteredMetaMetrics.indexOf(a);
-          const ib = filteredMetaMetrics.indexOf(b);
-          if(ia === -1 && ib === -1) return a.localeCompare(b);
-          if(ia === -1) return 1;
-          if(ib === -1) return -1;
-          return ia - ib;
-        });
-      } else {
-        metricList.sort();
-      }
-
-      // When creating metaMap and displayMeta, map keys via normalizedAndCanonKey accordingly
+      metricList.sort();
       const metaMap = {};
       filteredMetadata.forEach(m => {
-        metaMap[normalizedAndCanonKey(m.metric)] = m;
+        metaMap[m.metric.toLowerCase()] = m;
       });
 
-      normalizedCatalog.forEach(c => {
-        const key = ALIAS_MAP[c.label] || ALIAS_MAP[c.metric] || c.metric;
-        if (!(key in metaMap) && !VITALS_BLACKLIST.has(key)) {
-          metaMap[key] = { metric: key, label: c.label || key };
-        }
-      });
-
-      Object.entries(CATEGORY_MAP).forEach(([k, v]) => {
-        const normK = normalizedAndCanonKey(k);
-        if (!(normK in metaMap)) {
-          metaMap[normK] = { metric: normK, label: normK, group: v };
-        }
-      });
-
+      // initial checked
       const initialChecked = metricList.filter(m => seriesMetrics.includes(m)).slice(0, 5);
 
       const displayMeta = metricList.map(m => {
         const d = metaMap[m] ? Object.assign({}, metaMap[m]) : { metric: m, label: m };
-        // Do not set .disabled
+        if (!seriesMetrics.includes(m)) d.disabled = true;
         return d;
       });
+
+      // Build a simple map metric -> groupName for charts
+      window._metricGroupMap = {};
+      displayMeta.forEach(d => {
+        if (d.metric && d.group_name) window._metricGroupMap[d.metric.toLowerCase()] = d.group_name;
+      });
+
       renderPanelControls(el, displayMeta, initialChecked);
       renderCharts(el);
 
       try {
         _labMedEvents = await fetchMedications(personId);
-      } catch(e) {
+      } catch (e) {
         _labMedEvents = [];
       }
 
-      window.ALL_METRICS = metricList; window._dataCache = _dataCache;
-    } catch(e) {
+      window.ALL_METRICS = metricList;
+      window._dataCache = _dataCache;
+    } catch (e) {
       console.warn('Error loading shared labs:', e);
       showError('Unable to render lab graphs.');
     }
