@@ -1,0 +1,20 @@
+pattern,loinc_code,canonical_name,unit_hint,notes
+Albumin,1751-7,Albumin,g/dL,Serum albumin
+Alkaline phosphatase,6768-6,Alkaline phosphatase,U/L,ALP (serum/plasma)
+Aspartate aminotransferase,1920-8,Aspartate aminotransferase,U/L,AST (serum/plasma)
+Alanine aminotransferase,1742-6,Alanine aminotransferase,U/L,ALT (serum/plasma)
+Gamma glutamyl transferase,2324-2,Gamma glutamyl transferase,U/L,GGT (serum/plasma)
+Bilirubin, Total,1975-2,Bilirubin, Total,mg/dL,Total bilirubin
+Bilirubin, Direct,1968-7,Bilirubin, Direct,mg/dL,Direct bilirubin
+Glucose,2345-7,Glucose,mg/dL,Blood glucose
+Calcium,17861-6,Calcium,mg/dL,Serum calcium
+Creatinine,2160-0,Creatinine,mg/dL,Serum creatinine
+BUN,3094-0,Blood Urea Nitrogen,mg/dL,BUN blood urea nitrogen
+Cholesterol,2093-3,Cholesterol,mg/dL,Total cholesterol
+HDL,2085-9,HDL Cholesterol,mg/dL,High-density lipoprotein
+LDL,94531-1,LDL Cholesterol,mg/dL,Low-density lipoprotein
+Triglycerides,2571-8,Triglycerides,mg/dL,Triglycerides level
+Hemoglobin A1C,4548-4,Hemoglobin A1C,%,Hemoglobin A1c glycated hemoglobin
+TSH,3016-3,Thyroid Stimulating Hormone,mIU/L,Thyroid hormone
+
+-- Add more entries as needed based on your full label list

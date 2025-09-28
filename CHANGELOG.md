@@ -2,46 +2,29 @@
 
 ## [Unreleased]
 
-## [Unreleased]
 ### Added
-- `analytics.v_labs_metadata_person` view for person-scoped lab metadata (label/group/sensitive) derived from `v_labs_all_grouped`.
-- `GET /labs/{person_id}/labs-metadata` FastAPI route returning dynamic metadata for UI panel construction, with `include_sensitive` toggle.
+
+- New FastAPI router `srv/api/routers/labs.py` with `/labs/{person_id}/labs-metadata` endpoint to serve person-scoped, dynamically grouped lab metadata including label, group_name, and sensitivity flags.
+- Dynamic grouping of lab metrics into panels by `group_name` in frontend labs_shared_v3.js, replacing static category maps and alias mappings.
+- Date range selectors for labs chart filtering with auto persistence (localStorage) and validation.
+- Zoom and pan support added to Chart.js-based labs charts using `chartjs-plugin-zoom`.
+- Medication event overlay display on Labs charts, improving context visibility.
+- Canonicalization and unification of lab metric keys and labels in frontend to handle synonyms (e.g., HA1C vs hemoglobin a1c).
+- Backend database view `analytics.v_labs_metadata_person` updated to correctly populate group_name from `v_labs_all_grouped` for proper UI grouping.
+- Backend APIs `/labs/{person_id}/all-series` and metadata refined to use correct database columns (`label`, `value_num`) for lab data.
+- Added `scripts/test_labs_catalog_api.sh` for validating labs catalog completeness.
+- Added patch to client to suppress chartjs-plugin-zoom wheel event listener warnings with passive event flag.
+### Fixed
+
+- Resolved UnboundLocalError in liver-series API handler by properly defining fallback demo data before returning.
+- Fixed `ModuleNotFoundError` by adjusting Python import paths and UVicorn start instructions.
+- Corrected frontend grouping logic to use backend-provided `group_name` properly, enabling UI panels to display comprehensive grouped labs.
+- Fixed checkboxes disabled logic to ensure labs without series data are selectable if data is expected later.
 
 ### Notes
-- Client should build panels by `group_name` from the returned items; labels are normalized (Title Case with acronyms preserved).
 
-### Added
-- Documentation structure overhaul (Diátaxis): docs/index.md, how-to/, reference/, explanations/, runbooks/, and changes/ with newsfragment workflow.
-- Docs automation scripts: reindex_docs.py, build_catalog.py, build_adr_index.py, build_contracts_registry.py, build_code_map.py, build_glossary_synonyms.py, staleness_report.py, link_check.py (under scripts/docs/).
-- CI workflow (.github/workflows/docs.yml) to enforce docs artifacts, run link checker, and require change fragments (or skip-changelog label).
-- Makefile target `docs` to rebuild docs artifacts locally (index, catalogs, registry, glossary synonyms, staleness, link check).
-- Generated artifacts: docs/catalog.json; docs/reference/contracts/index.json; docs/reference/code_map.json; docs/reference/glossary_synonyms.json; docs/status/staleness.json; docs/architecture/ADRs/index.md.
-- New shared labs UI (`labs_shared_v2.js`) with grouped clinical categories and selectable metrics.
-- Backend `/labs/{person_id}/labs-metadata` API endpoint for lab metrics metadata grouped by clinical category.
-- Backend `/labs/{person_id}/all-series` API endpoint consolidating all lab metric series from `analytics.mv_labs_all` view.
-- Template `labs_shared_page.html` for shared labs UI with required JS includes and Chart.js with date adapter.
-- Basic `labs_critical_page.html` template for critical labs UI.
-- `dashboard_events.js` client script for dynamic loading and rendering of recent events table on `/dashboard/events` page.
-- Added medication overlay support with configurable test events on critical, liver, and shared labs pages.
-- Toggle controls on labs pages to show/hide medication overlays.
-
-### Fixed
-- Indentation and syntax errors in `srv/api/dashboard.py` routes causing server start failures.
-- Removed missing `dashboard_events.js` JS file reference from events.html previously causing 404 errors.
-- Fixed chart rendering errors by adding Chart.js date adapter (`chartjs-adapter-date-fns`).
-- Excluded vital sign metrics (hr, spo2) from shared labs metric metadata listing both server-side and client-side.
-- Fixed local variable scoping issues in exception handlers in dashboard.py routes.
-- Added detailed traceback logging in exception handlers to aid debugging.
-- Ensured static asset and router inclusion order correctness in `srv/api/main.py` and templates.
-
-### Removed
-- Removed hardcoded or duplicate banner markup causing UI duplication.
-- Removed redundant or broken JS includes causing 404 errors.
-
-### Testing
-- Adjusted event page and other UI integration tests to reflect current static content and component presence.
-- Docs CI: validates docs/index.md, catalogs/registries, runs link checker, and enforces change fragments.
-
+- The labs catalog is dynamically merged from distinct observed metrics and CSV LOINC mappings, synchronized with frontend UI.
+- Frontend payloads now rely fully on server-provided metadata for grouping and labels to avoid duplication and mismatches.
 #### Details (imported from CHANGE_LOG.md)
 - Historical notes and investigation logs have been consolidated here from the deprecated CHANGE_LOG.md. See below for the full imported text.
 
@@ -184,7 +167,7 @@ Conversation Overview
 The conversation centered around the development, debugging, and enhancement of a Health Portal web application's frontend and backend components, primarily focusing on critical and liver lab chart rendering, dashboard UI improvements, routing, and static asset management. The discussion progressed from resolving JavaScript syntax errors in the labs_critical_v2.js script to improving UI link dynamicity, optimizing chart rendering performance, fixing banner rendering on dashboard-related pages, and addressing favicon loading errors.
 
 Active Development
-The foremost active work involved debugging and refining the labs_critical_v2.js client script responsible for rendering critical lab charts. This included removing stray non-JavaScript instruction text, defending against null canvas references, and enhancing chart rendering efficiency by reusing existing Chart.js instances instead of recreating them on each render. Further improvements introduced included adding guards to prevent redundant or overlapping network fetches (loadWithAgg function), deferring heavy chart initialization using requestIdleCallback, and dynamically resolving user identifiers (person_id) in URLs. The banner and navigation menu were harmonized to appear consistently on dashboard and related event pages, with proper routing and branding. Finally, favicon serving was corrected to prevent 404 errors.
+The foremost active work involved debugging and refining the labs_critical_v2.js client script responsible for rendering critical lab charts. This included removing stray non-Javascript instruction text, defending against null canvas references, and enhancing chart rendering efficiency by reusing existing Chart.js instances instead of recreating them on each render. Further improvements introduced included adding guards to prevent redundant or overlapping network fetches (loadWithAgg function), deferring heavy chart initialization using requestIdleCallback, and dynamically resolving user identifiers (person_id) in URLs. The banner and navigation menu were harmonized to appear consistently on dashboard and related event pages, with proper routing and branding. Finally, favicon serving was corrected to prevent 404 errors.
 
 Technical Stack
 
@@ -232,6 +215,3 @@ This summary encapsulates all key modifications, debugging efforts, files involv
 - Added migrations, importer, /labs critical-series, /records browse; docs; guardrails.
 [END imported from CHANGE_LOG.md]
 
----
-
-Please review and adjust for accuracy or completeness as needed.

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from . import dashboard, dashboard_events, genomics
 from .reports import router as reports_router
-from srv.routers import labs  # Add this import
+from srv.api.routers import labs  # Import moved labs router
 
 app = FastAPI()
 
@@ -18,7 +18,7 @@ app.include_router(dashboard.router)
 app.include_router(dashboard_events.router)
 app.include_router(genomics.router)
 app.include_router(reports_router)
-app.include_router(labs.router)  # Add this line to include labs router
+app.include_router(labs.router)  # Include labs router
 
 # include v1 api if present
 try:
@@ -30,18 +30,15 @@ try:
 except Exception:
     pass
 
-
 # favicon route
 @app.get("/favicon.ico")
 async def favicon():
     return FileResponse("srv/api/static/favicon.ico")
 
-
 # healthz
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
-
 
 # optional labs router
 try:
@@ -58,3 +55,4 @@ try:
     app.include_router(records_router)
 except Exception:
     pass
+

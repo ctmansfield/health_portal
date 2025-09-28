@@ -232,8 +232,8 @@ async def labs_liver_series(
     return JSONResponse(content=data)
 
 
-@router.get("/labs/{person_id}/all-series")
-async def labs_all_series(person_id: str, auth=Depends(require_api_key)):
+@router.get("/x_deprecated/labs/{person_id}/all-series")
+async def labs_all_series_deprecated(person_id: str, auth=Depends(require_api_key)):
     with db.pg() as conn:
         cur = conn.cursor()
         try:
@@ -281,8 +281,8 @@ async def labs_all_series(person_id: str, auth=Depends(require_api_key)):
     return JSONResponse(content=data)
 
 
-@router.get("/labs/{person_id}/labs-metadata")
-async def labs_metadata(person_id: str, auth=Depends(require_api_key)):
+@router.get("/x_deprecated/labs/{person_id}/labs-metadata")
+async def labs_metadata_deprecated(person_id: str, auth=Depends(require_api_key)):
     try:
         with db.pg() as conn:
             cur = conn.cursor()

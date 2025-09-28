@@ -51,82 +51,140 @@
     return response.json();
   }
 
-  function renderPanelControls(el, metadata, initialChecked = []) {
-    const controls = $('.hp-labs-controls', el);
-    controls.innerHTML = '';
+  function showError(msg) {
+    const el = document.querySelector('#labs-shared-error');
+    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    else { console.error(msg); }
+  }
 
-    if (!metadata || metadata.length === 0) {
-      controls.textContent = 'No lab metrics available';
-      return;
-    }
-
-    const HIDDEN_PANELS = new Set(['drug screen', 'sti tests']);
-
-    // Group metadata by group_name lowercase, fallback 'other'
-    const panelMap = {};
-    metadata.forEach(m => {
-      const panel = (m.group_name || 'Other').toLowerCase();
-      if (HIDDEN_PANELS.has(panel)) return;
-      if (!panelMap[panel]) panelMap[panel] = [];
-      panelMap[panel].push(m);
+  function dumpCatalogMetrics(catalog) {
+    console.log('Catalog dump:');
+    catalog.forEach((c) => {
+      console.log(`  Metric key: ${c.metric}, Label: ${c.label || '-'}'`);
     });
+  }
 
-    const panels = Object.keys(panelMap).sort((a, b) => {
-      if (a === 'other') return 1;
-      if (b === 'other') return -1;
-      return a.localeCompare(b);
-    });
+  async function loadAndRender(el, startDate, endDate) {
+    try {
+      const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
+      const params = new URLSearchParams();
+      if (startDate) params.set('start_date', startDate);
+      if (endDate) params.set('end_date', endDate);
 
-    const panelSelector = document.createElement('select');
-    panelSelector.style.marginBottom = '8px';
+      const [seriesRes, metaRes, catalogRes] = await Promise.allSettled([
+        fetch(`/labs/${encodeURIComponent(personId)}/all-series?` + params.toString(), { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/labs/${encodeURIComponent(personId)}/labs-metadata`, { cache: 'no-store' }).then(r => r.json()),
+        fetchMetricsCatalog()
+      ]);
 
-    panels.forEach(panel => {
-      const option = document.createElement('option');
-      option.value = panel;
-      option.textContent = panel.charAt(0).toUpperCase() + panel.slice(1);
-      panelSelector.appendChild(option);
-    });
+      if (seriesRes.status !== 'fulfilled') {
+        console.error('Error loading shared labs series:', seriesRes.reason);
+        showError('Could not load lab series. Please retry.');
+        return;
+      }
 
-    controls.appendChild(panelSelector);
+      const series = Array.isArray(seriesRes.value) ? seriesRes.value : [];
+      _dataCache = series;
+      const meta = metaRes.status === 'fulfilled' ? (metaRes.value || []) : [];
 
-    const checkboxContainer = document.createElement('div');
-    controls.appendChild(checkboxContainer);
+      // Log metadata items missing or empty group_name
+      const missingGroups = meta.filter(m => !m.group_name || m.group_name.trim() === '');
+      console.log('Metadata entries missing group_name:', missingGroups.length);
+      if (missingGroups.length > 0) {
+        console.log('Sample missing group entries:', missingGroups.slice(0, 5));
+      }
 
-    function renderCheckboxes(panel) {
-      const labs = panelMap[panel] || [];
-      checkboxContainer.innerHTML = '';
-      labs.sort((a, b) => (a.label || a.metric).localeCompare(b.label || b.metric));
+      window._lastMetadata = meta; // expose for diagnostic
 
-      labs.forEach(item => {
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
-        row.style.marginBottom = '6px';
+      console.log('Full metadata received:', meta);
 
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = item.metric || item;
-        cb.id = 'cb_' + cb.value;
-        cb.checked = initialChecked.includes(cb.value);
-        cb.disabled = item.disabled || false;
+      const groups = new Set(meta.map(m => m.group));
+      console.log('Unique groups found:', Array.from(groups));
 
-        const lbl = document.createElement('label');
-        lbl.htmlFor = cb.id;
-        lbl.textContent = item.label || cb.value;
-        lbl.style.marginLeft = '8px';
+      const HIDDEN_PANELS = new Set(['drug screen', 'sti tests']);
 
-        row.appendChild(cb);
-        row.appendChild(lbl);
-        checkboxContainer.appendChild(row);
+      // Group labs dynamically from backend metadata using group_name
+      const filteredMetadata = meta.filter(m => m && m.label && !HIDDEN_PANELS.has(((m.group_name || m.group || 'other').toLowerCase())));
+      const panelMap = {};
+      filteredMetadata.forEach(m => {
+        const panel = (m.group_name || m.group || 'Other').toLowerCase();
+        if (!panelMap[panel]) panelMap[panel] = [];
+        panelMap[panel].push(m);
       });
-    }
+      const panels = Object.keys(panelMap).sort((a, b) => {
+        if (a === 'other') return 1;
+        if (b === 'other') return -1;
+        return a.localeCompare(b);
+      });
 
-    panelSelector.addEventListener('change', () => {
-      renderCheckboxes(panelSelector.value);
+      // Build and render panel selector dropdown
+      const panelSelector = document.createElement('select');
+      panelSelector.style.marginBottom = '8px';
+
+      panels.forEach(panel => {
+        const option = document.createElement('option');
+        option.value = panel;
+        option.textContent = panel.charAt(0).toUpperCase() + panel.slice(1);
+        panelSelector.appendChild(option);
+      });
+
+      const controls = $('.hp-labs-controls', el);
+      controls.innerHTML = '';
+      controls.appendChild(panelSelector);
+
+      const checkboxContainer = document.createElement('div');
+      controls.appendChild(checkboxContainer);
+
+      function renderCheckboxes(panel) {
+        console.log('Selected panel:', panel);
+        const labs = panelMap[panel] || [];
+        console.log('Labs count for panel:', labs.length);
+        checkboxContainer.innerHTML = '';
+        labs.sort((a, b) => (a.label || a.metric).localeCompare(b.label || b.metric));
+        labs.forEach(item => {
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.marginBottom = '6px';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = item.metric || item;
+          cb.id = 'cb_' + cb.value;
+          cb.checked = false;
+
+          const lbl = document.createElement('label');
+          lbl.htmlFor = cb.id;
+          lbl.textContent = item.label || cb.value;
+          lbl.style.marginLeft = '8px';
+
+          row.appendChild(cb);
+          row.appendChild(lbl);
+          checkboxContainer.appendChild(row);
+        });
+      }
+
+      panelSelector.addEventListener('change', () => {
+        renderCheckboxes(panelSelector.value);
+        renderCharts(el);
+      });
+
+      if (panels.length > 0) {
+        renderCheckboxes(panels[0]);
+      }
+
       renderCharts(el);
-    });
 
-    renderCheckboxes(panelSelector.value);
+      try {
+        _labMedEvents = await fetchMedications(personId);
+      } catch (e) {
+        _labMedEvents = [];
+      }
+
+    } catch (e) {
+      console.warn('Error loading shared labs:', e);
+      showError('Unable to render lab graphs.');
+    }
   }
 
   function renderCharts(el) {
@@ -136,6 +194,7 @@
     body.innerHTML = '';
 
     const checkedBoxes = Array.from(el.querySelectorAll('.hp-labs-controls input[type=checkbox]:checked'));
+
     const metricsByPanel = {};
 
     checkedBoxes.forEach(cb => {
@@ -146,6 +205,11 @@
 
       if (!metricsByPanel[groupName]) metricsByPanel[groupName] = [];
       metricsByPanel[groupName].push(metric);
+    });
+
+    console.log('renderCharts - metrics by panel:');
+    Object.entries(metricsByPanel).forEach(([panelName, metrics]) => {
+      console.log(`Panel: ${panelName}, Metrics: ${metrics.join(', ')}`);
     });
 
     Object.entries(metricsByPanel).forEach(([panelName, metrics]) => {
@@ -161,17 +225,21 @@
       body.appendChild(panelDiv);
 
       const seriesMap = {};
-      _dataCache.forEach(md => { seriesMap[md.metric.toLowerCase()] = md.series || []; });
+      _dataCache.forEach(md => {
+        seriesMap[md.metric.toLowerCase()] = md.series || [];
+      });
 
       const unitForMetric = {};
       const transformed = {};
       metrics.forEach(m => {
         const s = seriesMap[m.toLowerCase()] || [];
+        console.log(`Panel: ${panelName}, Metric: ${m}, Data points: ${s.length}`);
         if (!s || s.length === 0) {
           transformed[m] = [];
           unitForMetric[m] = '';
           return;
         }
+
         const vals = s.map(p => (p && p.v !== null) ? Number(p.v) : null).filter(v => v !== null && !Number.isNaN(v));
         const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
         if (m.toLowerCase().includes('spo2') || (avg > 0 && avg <= 2)) {
@@ -253,105 +321,10 @@
     });
   }
 
-  function dumpCatalogMetrics(catalog) {
-    console.log('Catalog dump:');
-    catalog.forEach((c) => {
-      console.log(`  Metric key: ${c.metric}, Label: ${c.label || '-'}'`);
-    });
-  }
-
-  async function loadAndRender(el, startDate, endDate) {
-    try {
-      const personId = (el && el.dataset && el.dataset.personId) ? el.dataset.personId : 'me';
-      const params = new URLSearchParams();
-      if (startDate) params.set('start_date', startDate);
-      if (endDate) params.set('end_date', endDate);
-
-      const [seriesRes, metaRes, catalogRes] = await Promise.allSettled([
-        fetch(`/labs/${encodeURIComponent(personId)}/all-series?` + params.toString(), { cache: 'no-store' }).then(r => r.json()),
-        fetch(`/labs/${encodeURIComponent(personId)}/labs-metadata`, { cache: 'no-store' }).then(r => r.json()),
-        fetchMetricsCatalog()
-      ]);
-
-      if (seriesRes.status !== 'fulfilled') {
-        console.error('Error loading shared labs series:', seriesRes.reason);
-        showError('Could not load lab series. Please retry.');
-        return;
-      }
-
-      const series = Array.isArray(seriesRes.value) ? seriesRes.value : [];
-      _dataCache = series;
-      const meta = metaRes.status === 'fulfilled' ? (metaRes.value || []) : [];
-      const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value || []) : [];
-
-      dumpCatalogMetrics(catalog);
-
-      // Group labs dynamically from backend metadata
-      const HIDDEN_PANELS = new Set(['drug screen', 'sti tests']);
-
-      // Filter vitals
-      const filteredMetadata = (meta || []).filter(m => {
-        const label = m.label || m.metric || '';
-        return !VITALS_BLACKLIST.has(label.toLowerCase());
-      });
-
-      // Build superset metrics
-      const seriesMetrics = Array.from(new Set(series.map(s => s.metric).filter(m => !VITALS_BLACKLIST.has(m.toLowerCase()))));
-      const supersetMetricsSet = new Set([
-        ...filteredMetadata.map(m => m.metric),
-        ...seriesMetrics,
-        ...catalog.map(c => c.metric.toLowerCase())
-      ]);
-
-      let metricList = Array.from(supersetMetricsSet);
-      metricList.sort();
-      const metaMap = {};
-      filteredMetadata.forEach(m => {
-        metaMap[m.metric.toLowerCase()] = m;
-      });
-
-      // initial checked
-      const initialChecked = metricList.filter(m => seriesMetrics.includes(m)).slice(0, 5);
-
-      const displayMeta = metricList.map(m => {
-        const d = metaMap[m] ? Object.assign({}, metaMap[m]) : { metric: m, label: m };
-        if (!seriesMetrics.includes(m)) d.disabled = true;
-        return d;
-      });
-
-      // Build a simple map metric -> groupName for charts
-      window._metricGroupMap = {};
-      displayMeta.forEach(d => {
-        if (d.metric && d.group_name) window._metricGroupMap[d.metric.toLowerCase()] = d.group_name;
-      });
-
-      renderPanelControls(el, displayMeta, initialChecked);
-      renderCharts(el);
-
-      try {
-        _labMedEvents = await fetchMedications(personId);
-      } catch (e) {
-        _labMedEvents = [];
-      }
-
-      window.ALL_METRICS = metricList;
-      window._dataCache = _dataCache;
-    } catch (e) {
-      console.warn('Error loading shared labs:', e);
-      showError('Unable to render lab graphs.');
-    }
-  }
-
   window.loadAndRender = function(el, startDate, endDate) {
     if (!el) el = document.querySelector(SEL);
     if (el) return loadAndRender(el, startDate, endDate);
   };
-
-  function showError(msg) {
-    const el = document.querySelector('#labs-shared-error');
-    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
-    else { console.error(msg); }
-  }
 
   function boot() {
     document.querySelectorAll(SEL).forEach(el => loadAndRender(el));
@@ -361,3 +334,4 @@
   else boot();
 
 })();
+

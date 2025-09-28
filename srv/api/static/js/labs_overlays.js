@@ -6,12 +6,22 @@
   // Helper to fetch medication events for a person
   async function fetchMedications(personId) {
     try {
-      const res = await fetch(`/medications/${encodeURIComponent(personId)}/events`, {cache:'no-store'});
-      if(!res.ok) throw new Error('Failed to fetch medications');
+      const res = await fetch(`/medications/${encodeURIComponent(personId)}/events`, {
+        cache:'no-store',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          // Not authenticated; silently skip overlays
+          return [];
+        }
+        throw new Error(`Failed to fetch medications: ${res.status}`);
+      }
       const data = await res.json();
       return data;
     } catch(e) {
-      console.warn('Error fetching medications', e);
+      // Reduce console noise; overlay is optional
+      console.debug('Medication overlays unavailable:', e && e.message ? e.message : e);
       return [];
     }
   }

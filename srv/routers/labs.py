@@ -8,7 +8,6 @@ router = APIRouter(prefix="/labs", tags=["labs"])
 
 
 def _conninfo() -> str:
-    # Prefer DATABASE_URL; else build from PG* env vars
     url = os.getenv("DATABASE_URL")
     if url:
         return url
@@ -23,9 +22,7 @@ def _conninfo() -> str:
 @router.get("/{person_id}/labs-metadata", response_model=List[Dict[str, Any]])
 def labs_metadata(
     person_id: str = Path(..., description="Patient/person identifier"),
-    include_sensitive: bool = Query(
-        True, description="Include items flagged Sensitive"
-    ),
+    include_sensitive: bool = Query(True, description="Include items flagged Sensitive")
 ) -> List[Dict[str, Any]]:
     try:
         with psycopg.connect(_conninfo(), row_factory=dict_row) as conn:
@@ -46,6 +43,8 @@ def labs_metadata(
                 """
                 params = (person_id,)
             rows = conn.execute(sql, params).fetchall()
+
         return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"labs-metadata query failed: {e}")
+
