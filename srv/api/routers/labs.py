@@ -7,6 +7,29 @@ from app.hp_etl import db as hp_db
 
 router = APIRouter(prefix="/labs", tags=["labs"])
 
+@router.get("/metrics-catalog", response_model=List[Dict[str, Any]])
+def metrics_catalog(
+    code_system: str = Query("LOINC", description="Filter by code system (default LOINC)"),
+    include_disabled: bool = Query(False, description="Include disabled entries")
+) -> List[Dict[str, Any]]:
+    try:
+        with hp_db.pg(_conninfo()) as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                sql = (
+                    "SELECT code_system, code, label, label_key_norm, group_name, sensitive, unit, enabled "
+                    "FROM analytics.labs_metric_catalog WHERE code_system ILIKE %s"
+                )
+                params = [code_system]
+                if not include_disabled:
+                    sql += " AND enabled IS TRUE"
+                sql += " ORDER BY group_name, label"
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+                return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"metrics-catalog query failed: {e}")
+
+
 def _conninfo() -> str:
     # Prefer the shared HP_DSN used by the app to ensure consistent DB and schema
     try:
