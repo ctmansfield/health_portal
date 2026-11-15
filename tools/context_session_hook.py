@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Emit a short, read-only Codex SessionStart intake reminder.
 
 This adapter does not run the reader, read policy/task records, fetch sources,
@@ -6,15 +5,17 @@ write files, or acknowledge adoption. Its installation is optional and must use
 the host's normal hook trust review. Input fields never supply shell commands.
 """
 
+from __future__ import annotations
+
 import sys
 
 sys.dont_write_bytecode = True
 
 # Suppress cache writes before loading the adapter's other modules.
-import json  # noqa: E402
-import shlex  # noqa: E402
-from pathlib import Path  # noqa: E402
-from typing import Any, Dict, Optional  # noqa: E402
+import json
+import shlex
+from pathlib import Path
+from typing import Any
 
 MAX_INPUT_BYTES = 16384
 SOURCES = frozenset(("startup", "resume", "clear", "compact", "fork"))
@@ -24,8 +25,8 @@ class HookInputError(ValueError):
     """Malformed or oversized hook input; details are deliberately not echoed."""
 
 
-def _unique_object(pairs: Any) -> Dict[str, Any]:
-    result: Dict[str, Any] = {}
+def _unique_object(pairs: Any) -> dict[str, Any]:
+    result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
             raise HookInputError("Duplicate JSON key")
@@ -37,7 +38,7 @@ def _reject_constant(value: str) -> None:
     raise HookInputError("Nonstandard JSON constant")
 
 
-def parse_source(raw: bytes) -> Optional[str]:
+def parse_source(raw: bytes) -> str | None:
     """Return a supported SessionStart source; unrelated events are a no-op."""
     if not raw or len(raw) > MAX_INPUT_BYTES:
         raise HookInputError("Invalid input length")
@@ -59,7 +60,7 @@ def parse_source(raw: bytes) -> Optional[str]:
     return source if source in SOURCES else None
 
 
-def build_output(source: str, project_root: Path) -> Dict[str, Any]:
+def build_output(source: str, project_root: Path) -> dict[str, Any]:
     """Build the documented hook shape from a fixed source and trusted path."""
     if source not in SOURCES:
         raise ValueError("Unsupported session source")

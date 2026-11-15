@@ -108,6 +108,7 @@ class ContextSessionHookTests(unittest.TestCase):
             before = sorted(root.rglob("*"))
             completed = subprocess.run(
                 [sys.executable, str(SCRIPT)],
+                check=False,
                 input=event(),
                 capture_output=True,
                 cwd=root,
@@ -123,6 +124,7 @@ class ContextSessionHookTests(unittest.TestCase):
     def test_cli_does_not_echo_malformed_input(self):
         completed = subprocess.run(
             [sys.executable, str(SCRIPT)],
+            check=False,
             input=b"SECRET_SENTINEL_NOT_JSON",
             capture_output=True,
             timeout=5,
@@ -134,6 +136,7 @@ class ContextSessionHookTests(unittest.TestCase):
     def test_cli_ignores_unmatched_events_cleanly(self):
         completed = subprocess.run(
             [sys.executable, str(SCRIPT)],
+            check=False,
             input=event(hook_event_name="SubagentStart"),
             capture_output=True,
             timeout=5,
@@ -168,6 +171,7 @@ class ContextSessionHookTests(unittest.TestCase):
                     "-c",
                     'python3 "$(git rev-parse --show-toplevel)/tools/context_session_hook.py"',
                 ],
+                check=False,
                 input=event(),
                 capture_output=True,
                 cwd=nested,

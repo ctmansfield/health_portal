@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 """Read-only, offline projection of explicitly indexed coordination task data."""
+
 import argparse
 import datetime as dt
 import hashlib

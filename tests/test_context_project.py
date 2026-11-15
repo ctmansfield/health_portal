@@ -113,9 +113,7 @@ class ProjectTests(unittest.TestCase):
         first = self.init()
         self.assertEqual(first["status"], "INITIALIZED")
         self.assertEqual(first["task_state"], "UNSEEDED")
-        self.assertEqual(
-            set(p.name for p in self.root.iterdir()), project.INITIAL_FILES
-        )
+        self.assertEqual({p.name for p in self.root.iterdir()}, project.INITIAL_FILES)
         before = {p.name: p.read_bytes() for p in self.root.iterdir()}
         again = self.init()
         self.assertEqual(again["status"], "ALREADY_INITIALIZED")

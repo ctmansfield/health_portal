@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 """Initialize local context metadata, resume ordered reading, or register a capsule."""
+
 import contextlib
 import hashlib
 import json
@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 sys.dont_write_bytecode = True
 # Suppress cache writes before loading the sibling reader.
-import context_projection as cp  # noqa: E402
+import context_projection as cp
 
 PROFILE_KEYS = {"schema", "version", "project", "repository", "control_url", "policy"}
 INITIAL_FILES = {"project.json", "index.json", "README.md"}
