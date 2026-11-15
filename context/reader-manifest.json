@@ -1,0 +1,20 @@
+{
+  "bundle_version": "1.0.0",
+  "policy_version": "context-v1",
+  "files": {
+    "tools/context_projection.py": "b4957cf6ee56d84aa018eb60b3e95322295560a532b794bd124200045b0c72c1",
+    "tools/context_project.py": "99f76e870585a71e6101880e32fb50d9de9bf4c556fce43cf60626894c249e57",
+    "tools/context_session_hook.py": "7f4f96757cb64e75425e8cf10e0d5587a3eda47e4566cfc71b9ad880bf115367"
+  },
+  "verification": "Installed file hashes measured locally. Project context starts UNSEEDED; target Codex hook callbacks remain unverified.",
+  "style_validation": {
+    "black": "26.10.1",
+    "ruff": "0.17.5",
+    "scope": "six added context tools and tests only",
+    "python_runtime": "3.12.14",
+    "tests_passed": 50,
+    "deterministic_outputs_unchanged": 8,
+    "python39_runtime": "NOT_RUN",
+    "repository_wide_format_lint": "baseline failures remain"
+  }
+}
